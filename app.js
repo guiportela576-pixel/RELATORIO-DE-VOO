@@ -139,7 +139,7 @@ function endFlight(){
   if (btnEnd) btnEnd.disabled = true;
 
   const h = normalizeStr(inicio?.value) || (lastStartedAt || "—");
-  showMsg(`Voo encerrado • ${mins} min`);
+  showMsg(`Voo encerrado</div><div class="cardline">${mins} min`);
 }
 
 function getFieldValue(id){
@@ -314,10 +314,10 @@ function renderHistory(){
     const li = document.createElement("li");
     li.innerHTML = `
       <div class="cardline"><span class="lbl">DATA:</span> ${e.date || "-"}</div>
-      <div class="cardline"><span class="lbl">Nº:</span> ${f.num || "-"} • <span class="lbl">MISSÃO:</span> ${f.missao || "-"} • <span class="lbl">VOO:</span> ${f.voo || "-"}</div>
-      <div class="cardline"><span class="lbl">INÍCIO:</span> ${f.inicio || "-"} • <span class="lbl">TEMPO (min):</span> ${f.tempo || "-"}</div>
-      <div class="cardline"><span class="lbl">UA:</span> ${f.ua || "-"} • <span class="lbl">POUSOS:</span> ${f.pousos || "-"} • <span class="lbl">CICLOS:</span> ${f.ciclos || "-"}</div>
-      <div class="cardline"><span class="lbl">Nº BAT:</span> ${f.nbat || "-"} • <span class="lbl">CARGA INI:</span> ${f.cargaIni || "-"}% • <span class="lbl">CARGA FIM:</span> ${f.cargaFim || "-"}%</div>
+      <div class="cardline"><span class="lbl">Nº:</span> ${f.num || "-"}</div><div class="cardline"><span class="lbl">MISSÃO:</span> ${f.missao || "-"}</div><div class="cardline"><span class="lbl">VOO:</span> ${f.voo || "-"}</div>
+      <div class="cardline"><span class="lbl">INÍCIO:</span> ${f.inicio || "-"}</div><div class="cardline"><span class="lbl">TEMPO (min):</span> ${f.tempo || "-"}</div>
+      <div class="cardline"><span class="lbl">UA:</span> ${f.ua || "-"}</div><div class="cardline"><span class="lbl">POUSOS:</span> ${f.pousos || "-"}</div><div class="cardline"><span class="lbl">CICLOS:</span> ${f.ciclos || "-"}</div>
+      <div class="cardline"><span class="lbl">Nº BAT:</span> ${f.nbat || "-"}</div><div class="cardline"><span class="lbl">CARGA INI:</span> ${f.cargaIni || "-"}%</div><div class="cardline"><span class="lbl">CARGA FIM:</span> ${f.cargaFim || "-"}%</div>
       <div class="cardline"><span class="lbl">OBS:</span> ${f.obs || "-"}</div>
 
       <div class="actions">
@@ -433,7 +433,7 @@ function openEditModal(id){
   ensureUASelects();
 
   const f = e.fields || {};
-  document.getElementById("modalSub").textContent = `Data: ${e.date || "-"} • Criado: ${(e.createdAt || "").slice(0,16).replace('T',' ')}`;
+  document.getElementById("modalSub").textContent = `Data: ${e.date || "-"}</div><div class="cardline">Criado: ${(e.createdAt || "").slice(0,16).replace('T',' ')}`;
 
   document.getElementById("e_num").value = f.num || "";
   document.getElementById("e_missao").value = f.missao || "";
