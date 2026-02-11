@@ -18,6 +18,7 @@ function saveAll(){
 }
 
 function pad2(n){ return String(n).padStart(2, "0"); }
+function todayISO(){ return new Date().toISOString().slice(0,10); }
 function nowHHMM(){
   const d = new Date();
   return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
@@ -53,6 +54,7 @@ function showTab(key){
   });
 
   if (key === "history") renderHistory();
+  if (key === "new") updateAutoNum();
   if (key === "uas") renderUAs();
 }
 
@@ -153,7 +155,7 @@ function clampPercent(v){
 }
 
 function buildEntryFromForm(){
-  const today = new Date().toISOString().slice(0,10);
+  const selectedDate = normalizeStr(getFieldValue("f_date")) || todayISO();
 
   const num = normalizeStr(getFieldValue("f_num"));
   const missao = normalizeStr(getFieldValue("f_missao"));
@@ -171,10 +173,31 @@ function buildEntryFromForm(){
 
   return {
     id: (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2)),
-    date: today,
+    date: selectedDate,
     createdAt: new Date().toISOString(),
     fields: { num, missao, voo, inicio, tempo, ua, pousos, ciclos, nbat, cargaIni, cargaFim, obs }
   };
+}
+
+function getSelectedDate(){
+  return normalizeStr(document.getElementById("f_date")?.value) || todayISO();
+}
+
+function nextNumForDate(dateStr){
+  let maxNum = 0;
+  entries.forEach(e => {
+    if (e?.date !== dateStr) return;
+    const n = Number(String(e?.fields?.num || "").replace(/[^0-9]/g, ""));
+    if (Number.isFinite(n) && n > maxNum) maxNum = n;
+  });
+  return String(maxNum + 1);
+}
+
+function updateAutoNum(){
+  const dateStr = getSelectedDate();
+  const numEl = document.getElementById("f_num");
+  if (!numEl) return;
+  numEl.value = nextNumForDate(dateStr);
 }
 
 function saveEntry(){
@@ -194,7 +217,10 @@ function saveEntry(){
     if (btnEnd) btnEnd.disabled = true;
   }
 
+  updateAutoNum();
+
   const entry = buildEntryFromForm();
+  entry.fields.num = normalizeStr(document.getElementById("f_num")?.value) || entry.fields.num;
 
   const ua = entry.fields.ua;
   if (ua && !uas.includes(ua)){
@@ -210,11 +236,15 @@ function saveEntry(){
 }
 
 function clearForm(){
-  const ids = ["f_num","f_missao","f_voo","f_inicio","f_tempo","f_pousos","f_ciclos","f_nbat","f_carga_ini","f_carga_fim","f_obs"];
+  const ids = ["f_missao","f_voo","f_inicio","f_tempo","f_pousos","f_ciclos","f_nbat","f_carga_ini","f_carga_fim","f_obs"];
   ids.forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = "";
   });
+
+  const dEl = document.getElementById("f_date");
+  if (dEl) dEl.value = todayISO();
+  updateAutoNum();
 
   const uaSel = document.getElementById("f_ua");
   if (uaSel && defaultUA && uas.includes(defaultUA)) uaSel.value = defaultUA;
@@ -507,6 +537,13 @@ function deleteEdit(){
 /* ===== PWA: registrar SW ===== */
 (function init(){
   ensureUASelects();
+
+  const dEl = document.getElementById("f_date");
+  if (dEl){
+    dEl.value = todayISO();
+    dEl.addEventListener("change", () => updateAutoNum());
+  }
+  updateAutoNum();
   renderHistory();
   renderUAs();
 
