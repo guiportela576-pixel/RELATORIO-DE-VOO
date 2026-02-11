@@ -264,3 +264,15 @@ button.primary{ background: rgba(0, 229, 255, 0.16); border:1px solid rgba(0,229
   margin-bottom: 2px;
   color: rgba(230,245,255,0.75);
 }
+
+
+/* ===== HISTÓRICO INLINE (v1.2) ===== */
+.cardline {
+  font-size: 16px;
+  margin-bottom: 6px;
+}
+
+.cardline strong {
+  color: #00e5ff;
+  margin-right: 4px;
+}

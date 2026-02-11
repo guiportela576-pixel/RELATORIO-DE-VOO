@@ -313,12 +313,12 @@ function renderHistory(){
     const f = e.fields || {};
     const li = document.createElement("li");
     li.innerHTML = `
-      <div class="cardline"><span class="lbl">DATA:</span> ${e.date || "-"}</div>
-      <div class="cardline"><span class="lbl">Nº:</span> ${f.num || "-"}</div><div class="cardline"><span class="lbl">MISSÃO:</span> ${f.missao || "-"}</div><div class="cardline"><span class="lbl">VOO:</span> ${f.voo || "-"}</div>
-      <div class="cardline"><span class="lbl">INÍCIO:</span> ${f.inicio || "-"}</div><div class="cardline"><span class="lbl">TEMPO (min):</span> ${f.tempo || "-"}</div>
-      <div class="cardline"><span class="lbl">UA:</span> ${f.ua || "-"}</div><div class="cardline"><span class="lbl">POUSOS:</span> ${f.pousos || "-"}</div><div class="cardline"><span class="lbl">CICLOS:</span> ${f.ciclos || "-"}</div>
-      <div class="cardline"><span class="lbl">Nº BAT:</span> ${f.nbat || "-"}</div><div class="cardline"><span class="lbl">CARGA INI:</span> ${f.cargaIni || "-"}%</div><div class="cardline"><span class="lbl">CARGA FIM:</span> ${f.cargaFim || "-"}%</div>
-      <div class="cardline"><span class="lbl">OBS:</span> ${f.obs || "-"}</div>
+      <div class="cardline"><strong>DATA:</strong> ${e.date || "-"}</div>
+      <div class="cardline"><strong>Nº:</strong> ${f.num || "-"}</div><div class="cardline"><strong>MISSÃO:</strong> ${f.missao || "-"}</div><div class="cardline"><strong>VOO:</strong> ${f.voo || "-"}</div>
+      <div class="cardline"><strong>INÍCIO:</strong> ${f.inicio || "-"}</div><div class="cardline"><strong>TEMPO (min):</strong> ${f.tempo || "-"}</div>
+      <div class="cardline"><strong>UA:</strong> ${f.ua || "-"}</div><div class="cardline"><strong>POUSOS:</strong> ${f.pousos || "-"}</div><div class="cardline"><strong>CICLOS:</strong> ${f.ciclos || "-"}</div>
+      <div class="cardline"><strong>Nº BAT:</strong> ${f.nbat || "-"}</div><div class="cardline"><strong>CARGA INI:</strong> ${f.cargaIni || "-"}%</div><div class="cardline"><strong>CARGA FIM:</strong> ${f.cargaFim || "-"}%</div>
+      <div class="cardline"><strong>OBS:</strong> ${f.obs || "-"}</div>
 
       <div class="actions">
         <button type="button" class="ghost" onclick="openEditModal('${e.id}')">Editar</button>
@@ -351,7 +351,7 @@ function renderUAs(){
       list.forEach((u, i) => {
         const li = document.createElement("li");
         li.innerHTML = `
-          <div class="cardline">${u}${(defaultUA && u === defaultUA) ? ' <span class="lbl">(padrão)</span>' : ''}</div>
+          <div class="cardline">${u}${(defaultUA && u === defaultUA) ? ' <strong>(padrão)</strong>' : ''}</div>
           <div class="actions">
             <button class="ghost" type="button" onclick="makeDefaultUA('${u}')">Definir padrão</button>
             <button type="button" onclick="deleteUA(${i})">Excluir</button>
