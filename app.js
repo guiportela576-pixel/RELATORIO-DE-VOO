@@ -101,17 +101,17 @@ function buildPickers(){
   const cFim = [];
   for (let i=0; i<=100; i++) cFim.push({ value: String(i), label: `${i}%` });
 
-  fillSelect("f_ciclos", "Ciclos (opcional)", ciclos);
-  fillSelect("e_ciclos", "Ciclos (opcional)", ciclos);
+  fillSelect("f_ciclos", "", ciclos);
+  fillSelect("e_ciclos", "", ciclos);
 
-  fillSelect("f_nbat", "Nº Bat (opcional)", bat);
-  fillSelect("e_nbat", "Nº Bat (opcional)", bat);
+  fillSelect("f_nbat", "", bat);
+  fillSelect("e_nbat", "", bat);
 
-  fillSelect("f_carga_ini", "Carga inicial (%)", cIni);
-  fillSelect("e_carga_ini", "Carga inicial (%)", cIni);
+  fillSelect("f_carga_ini", "", cIni);
+  fillSelect("e_carga_ini", "", cIni);
 
-  fillSelect("f_carga_fim", "Carga final (%)", cFim);
-  fillSelect("e_carga_fim", "Carga final (%)", cFim);
+  fillSelect("f_carga_fim", "", cFim);
+  fillSelect("e_carga_fim", "", cFim);
 }
 
 function ensureUASelects(){
