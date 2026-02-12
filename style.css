@@ -496,3 +496,51 @@ input[type="date"], input[type="time"]{
   text-align: center;
   font-variant-numeric: tabular-nums;
 }
+
+
+/* ===== CORREÇÃO REAL SOBREPOSIÇÃO INÍCIO / TEMPO (v18) ===== */
+
+/* Reset completo da grid do formulário */
+#tab-new .grid {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 12px !important;
+}
+
+/* Remove QUALQUER posicionamento anterior */
+#tab-new .grid > * {
+  position: relative !important;
+  float: none !important;
+  clear: none !important;
+}
+
+/* Garante que os dois campos fiquem em colunas separadas */
+#tab-new .field:has(#f_inicio) {
+  grid-column: 1 !important;
+}
+
+#tab-new .field:has(#f_tempo) {
+  grid-column: 2 !important;
+}
+
+/* Garante que ambos respeitem largura total da coluna */
+#f_inicio,
+#f_tempo {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+}
+
+/* Centraliza valores */
+#f_inicio,
+#f_tempo {
+  text-align: center !important;
+}
+
+/* Segurança extra para telas pequenas */
+@media (max-width: 420px) {
+  #tab-new .grid {
+    grid-template-columns: 1fr 1fr !important;
+  }
+}
