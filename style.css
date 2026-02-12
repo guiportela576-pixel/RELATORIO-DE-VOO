@@ -393,3 +393,34 @@ select::-ms-expand{ display:none; }
 #filterUA{
   min-width: 0;
 }
+
+
+/* ===== Fix real de sobreposição (v2.1) ===== */
+/* Inputs de data/hora em iOS às vezes têm largura mínima grande. Forçamos a encolher. */
+input[type="date"], input[type="time"]{
+  min-width: 0 !important;
+  min-inline-size: 0 !important;
+  max-width: 100%;
+  max-inline-size: 100%;
+}
+
+/* Deixa o INÍCIO um pouco menor pra ficar bem alinhado com TEMPO */
+#f_inicio{
+  font-size: 15px;
+}
+
+/* Ajuste fino das colunas para caber melhor no mobile */
+#tab-new .grid{
+  grid-template-columns: 0.92fr 1.08fr;
+}
+
+#tab-history .grid{
+  grid-template-columns: 0.88fr 1.12fr;
+}
+
+/* Garante que cada bloco no grid possa encolher */
+#tab-new .grid > *,
+#tab-history .grid > *{
+  min-width: 0;
+  min-inline-size: 0;
+}
