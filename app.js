@@ -387,7 +387,7 @@ function exportPdfDay(){
   // Se não houver data no filtro, usa a data de hoje.
   const date = normalizeStr(document.getElementById("filterDate")?.value) || todayISO();
 
-  // Ignora filtro de UA para o PDF: sempre exporta tudo do dia.
+  // Exporta tudo do dia (ignora filtro de UA)
   const list = [...entries]
     .filter(e => e?.date === date)
     .sort((a,b) => String(a.createdAt||"").localeCompare(String(b.createdAt||"")));
@@ -399,7 +399,6 @@ function exportPdfDay(){
 
   const rows = list.map(e => {
     const f = e.fields || {};
-    // Mesmo formato do histórico (linhas DATA, Nº, etc.)
     return `
       <div class="item">
         <div class="cardline"><strong>DATA:</strong> ${e.date || "-"}</div>

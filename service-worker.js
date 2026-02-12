@@ -1,4 +1,4 @@
-const CACHE_NAME = "relatorio-voo-v4";
+const CACHE_NAME = "relatorio-voo-v5";
 
 self.addEventListener("install", (event) => {
   self.skipWaiting();

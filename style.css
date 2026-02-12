@@ -284,7 +284,7 @@ button.primary{ background: rgba(0, 229, 255, 0.16); border:1px solid rgba(0,229
 }
 
 
-/* ===== Labels acima dos campos (v1.4) ===== */
+/* ===== Labels acima dos campos (v1.5) ===== */
 .field{
   display:flex;
   flex-direction:column;
