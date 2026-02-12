@@ -456,3 +456,19 @@ input[type="date"], input[type="time"]{
     grid-template-columns: 1fr;
   }
 }
+
+
+/* ===== Ajuste: label do Início não cortar (v16) ===== */
+#tab-new .grid > *{
+  overflow: visible !important; /* evita cortar o texto do label */
+}
+
+.field label{
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  line-height: 1.15;
+}
+
+/* mantém o campo Início com a mesma largura de um campo 1 coluna (como Nº) */
+#f_inicio{ width:100%; }
