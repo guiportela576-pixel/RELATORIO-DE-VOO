@@ -1,6 +1,7 @@
 // Relatório de Voo (PWA) - armazenamento local
-const APP_VERSION = "1.0.0";
+const APP_VERSION = "1.1.0";
 const VERSION_HISTORY = [
+  "1.1.0 - Campos automáticos (início/tempo) + seletores (bat/ciclos/carga) + remoção de pousos + novo ícone",
   "1.0.0 - App inicial (novo + histórico + UA + cronômetro)"
 ];
 
@@ -58,6 +59,61 @@ function showTab(key){
   if (key === "uas") renderUAs();
 }
 
+/* ===== Selects (roleta nativa no celular) ===== */
+function fillSelect(id, placeholder, options){
+  const sel = document.getElementById(id);
+  if (!sel) return;
+
+  const prev = sel.value;
+  sel.innerHTML = "";
+
+  const opt0 = document.createElement("option");
+  opt0.value = "";
+  opt0.textContent = placeholder;
+  sel.appendChild(opt0);
+
+  options.forEach(o => {
+    const opt = document.createElement("option");
+    opt.value = String(o.value);
+    opt.textContent = String(o.label);
+    sel.appendChild(opt);
+  });
+
+  // tenta restaurar valor anterior (se existir na lista)
+  if (prev && Array.from(sel.options).some(x => x.value === prev)) sel.value = prev;
+  else sel.value = "";
+}
+
+function buildPickers(){
+  // ciclos 0..400
+  const ciclos = [];
+  for (let i=0; i<=400; i++) ciclos.push({ value: String(i), label: String(i) });
+
+  // bat 1..6
+  const bat = [];
+  for (let i=1; i<=6; i++) bat.push({ value: String(i), label: String(i) });
+
+  // carga inicial 100..0 (desc)
+  const cIni = [];
+  for (let i=100; i>=0; i--) cIni.push({ value: String(i), label: `${i}%` });
+
+  // carga final 0..100 (asc)
+  const cFim = [];
+  for (let i=0; i<=100; i++) cFim.push({ value: String(i), label: `${i}%` });
+
+  fillSelect("f_ciclos", "Ciclos (opcional)", ciclos);
+  fillSelect("e_ciclos", "Ciclos (opcional)", ciclos);
+
+  fillSelect("f_nbat", "Nº Bat (opcional)", bat);
+  fillSelect("e_nbat", "Nº Bat (opcional)", bat);
+
+  fillSelect("f_carga_ini", "Carga inicial (%)", cIni);
+  fillSelect("e_carga_ini", "Carga inicial (%)", cIni);
+
+  fillSelect("f_carga_fim", "Carga final (%)", cFim);
+  fillSelect("e_carga_fim", "Carga final (%)", cFim);
+}
+
 function ensureUASelects(){
   const selectNew = document.getElementById("f_ua");
   const selectEdit = document.getElementById("e_ua");
@@ -65,6 +121,7 @@ function ensureUASelects(){
 
   const build = (sel, placeholder) => {
     if (!sel) return;
+    const prev = sel.value;
     sel.innerHTML = "";
     const opt0 = document.createElement("option");
     opt0.value = "";
@@ -77,12 +134,15 @@ function ensureUASelects(){
       opt.textContent = u;
       sel.appendChild(opt);
     });
+
+    if (prev && Array.from(sel.options).some(o => o.value === prev)) sel.value = prev;
   };
 
   build(selectNew, "UA (opcional)");
   build(selectEdit, "UA (opcional)");
 
   if (filterUA){
+    const prev = filterUA.value;
     filterUA.innerHTML = "";
     const optAll = document.createElement("option");
     optAll.value = "";
@@ -94,6 +154,7 @@ function ensureUASelects(){
       opt.textContent = u;
       filterUA.appendChild(opt);
     });
+    if (prev && Array.from(filterUA.options).some(o => o.value === prev)) filterUA.value = prev;
   }
 
   if (selectNew && defaultUA && uas.includes(defaultUA)) selectNew.value = defaultUA;
@@ -101,8 +162,11 @@ function ensureUASelects(){
 
 function startFlight(){
   const inicio = document.getElementById("f_inicio");
+  const tempo = document.getElementById("f_tempo");
+
   const hhmm = nowHHMM();
   if (inicio) inicio.value = hhmm;
+  if (tempo) tempo.value = "";
 
   runStartMs = Date.now();
   lastStartedAt = hhmm;
@@ -141,7 +205,7 @@ function endFlight(){
   if (btnEnd) btnEnd.disabled = true;
 
   const h = normalizeStr(inicio?.value) || (lastStartedAt || "—");
-  showMsg(`Voo encerrado</div><div class="cardline">${mins} min`);
+  showMsg(`Voo encerrado - ${mins} min (início ${h})`);
 }
 
 function getFieldValue(id){
@@ -160,9 +224,10 @@ function buildEntryFromForm(){
   const num = normalizeStr(getFieldValue("f_num"));
   const missao = normalizeStr(getFieldValue("f_missao"));
   const voo = normalizeStr(getFieldValue("f_voo"));
-  const inicio = normalizeStr(getFieldValue("f_inicio"));
-  const tempo = normalizeStr(getFieldValue("f_tempo"));
+  const inicio = normalizeStr(getFieldValue("f_inicio")); // automático
+  const tempo = normalizeStr(getFieldValue("f_tempo"));   // automático
   const ua = normalizeStr(getFieldValue("f_ua"));
+
   const ciclos = normalizeStr(getFieldValue("f_ciclos"));
   const nbat = normalizeStr(getFieldValue("f_nbat"));
   const cargaIni = clampPercent(getFieldValue("f_carga_ini"));
@@ -199,13 +264,24 @@ function updateAutoNum(){
 }
 
 function saveEntry(){
+  const inicio = normalizeStr(getFieldValue("f_inicio"));
   const tempo = normalizeStr(getFieldValue("f_tempo"));
+
+  if (!inicio){
+    alert("Use INICIAR VOO para preencher o início automaticamente.");
+    return;
+  }
+  if (!tempo){
+    alert("Use ENCERRAR VOO para preencher o tempo automaticamente.");
+    return;
+  }
   if (tempo && Number(tempo) < 1){
     alert("Tempo de voo deve ser no mínimo 1 minuto.");
     return;
   }
 
   if (runStartMs){
+    // se salvou sem encerrar, fecha automaticamente
     const mins = minutesBetween(runStartMs, Date.now());
     document.getElementById("f_tempo").value = String(mins);
     runStartMs = null;
@@ -234,8 +310,14 @@ function saveEntry(){
 }
 
 function clearForm(){
-  const ids = ["f_missao","f_voo","f_inicio","f_tempo","f_ciclos","f_nbat","f_carga_ini","f_carga_fim","f_obs"];
+  const ids = ["f_missao","f_voo","f_inicio","f_tempo","f_obs"];
   ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = "";
+  });
+
+  // selects
+  ["f_ciclos","f_nbat","f_carga_ini","f_carga_fim"].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = "";
   });
@@ -265,7 +347,6 @@ function formatForCopy(e){
     `HORÁRIO - INÍCIO: ${f.inicio || "-"}`,
     `TEMPO DE VOO (MIN): ${f.tempo || "-"}`,
     `UA: ${f.ua || "-"}`,
-    `POUSOS: ${f.pousos || "-"}`,
     `CICLOS: ${f.ciclos || "-"}`,
     `Nº BAT: ${f.nbat || "-"}`,
     `CARGA INICIAL (%): ${f.cargaIni || "-"}`,
@@ -342,10 +423,16 @@ function renderHistory(){
     const li = document.createElement("li");
     li.innerHTML = `
       <div class="cardline"><strong>DATA:</strong> ${e.date || "-"}</div>
-      <div class="cardline"><strong>Nº:</strong> ${f.num || "-"}</div><div class="cardline"><strong>MISSÃO:</strong> ${f.missao || "-"}</div><div class="cardline"><strong>VOO:</strong> ${f.voo || "-"}</div>
-      <div class="cardline"><strong>INÍCIO:</strong> ${f.inicio || "-"}</div><div class="cardline"><strong>TEMPO (min):</strong> ${f.tempo || "-"}</div>
-      <div class="cardline"><strong>UA:</strong> ${f.ua || "-"}</div><div class="cardline"><strong>CICLOS:</strong> ${f.ciclos || "-"}</div>
-      <div class="cardline"><strong>Nº BAT:</strong> ${f.nbat || "-"}</div><div class="cardline"><strong>CARGA INI:</strong> ${f.cargaIni || "-"}%</div><div class="cardline"><strong>CARGA FIM:</strong> ${f.cargaFim || "-"}%</div>
+      <div class="cardline"><strong>Nº:</strong> ${f.num || "-"}</div>
+      <div class="cardline"><strong>MISSÃO:</strong> ${f.missao || "-"}</div>
+      <div class="cardline"><strong>VOO:</strong> ${f.voo || "-"}</div>
+      <div class="cardline"><strong>INÍCIO:</strong> ${f.inicio || "-"}</div>
+      <div class="cardline"><strong>TEMPO (min):</strong> ${f.tempo || "-"}</div>
+      <div class="cardline"><strong>UA:</strong> ${f.ua || "-"}</div>
+      <div class="cardline"><strong>CICLOS:</strong> ${f.ciclos || "-"}</div>
+      <div class="cardline"><strong>Nº BAT:</strong> ${f.nbat || "-"}</div>
+      <div class="cardline"><strong>CARGA INI:</strong> ${f.cargaIni || "-"}%</div>
+      <div class="cardline"><strong>CARGA FIM:</strong> ${f.cargaFim || "-"}%</div>
       <div class="cardline"><strong>OBS:</strong> ${f.obs || "-"}</div>
 
       <div class="actions">
@@ -459,9 +546,11 @@ function openEditModal(id){
 
   editId = id;
   ensureUASelects();
+  buildPickers();
 
   const f = e.fields || {};
-  document.getElementById("modalSub").textContent = `Data: ${e.date || "-"}</div><div class="cardline">Criado: ${(e.createdAt || "").slice(0,16).replace('T',' ')}`;
+  document.getElementById("modalSub").textContent =
+    `Data: ${e.date || "-"} | Criado: ${(e.createdAt || "").slice(0,16).replace('T',' ')}`;
 
   document.getElementById("e_num").value = f.num || "";
   document.getElementById("e_missao").value = f.missao || "";
@@ -469,10 +558,11 @@ function openEditModal(id){
   document.getElementById("e_inicio").value = f.inicio || "";
   document.getElementById("e_tempo").value = f.tempo || "";
   document.getElementById("e_ua").value = f.ua || "";
+
   document.getElementById("e_ciclos").value = f.ciclos || "";
   document.getElementById("e_nbat").value = f.nbat || "";
-  document.getElementById("e_carga_ini").value = f.cargaIni || "";
-  document.getElementById("e_carga_fim").value = f.cargaFim || "";
+  document.getElementById("e_carga_ini").value = (f.cargaIni ?? "") === "" ? "" : String(f.cargaIni);
+  document.getElementById("e_carga_fim").value = (f.cargaFim ?? "") === "" ? "" : String(f.cargaFim);
   document.getElementById("e_obs").value = f.obs || "";
 
   const ov = document.getElementById("modalOverlay");
@@ -530,34 +620,10 @@ function deleteEdit(){
   showMsg("Registro excluído.");
 }
 
-
-
-/* ===== Bateria (picker 1-6) ===== */
-let batTargetId = "f_nbat";
-
-function openBatPicker(targetId){
-  batTargetId = String(targetId || "f_nbat");
-  const ov = document.getElementById("batOverlay");
-  if (ov) ov.style.display = "flex";
-}
-function closeBatPicker(){
-  const ov = document.getElementById("batOverlay");
-  if (ov) ov.style.display = "none";
-}
-function pickBat(n){
-  const el = document.getElementById(batTargetId);
-  if (el) el.value = String(n);
-  closeBatPicker();
-}
-function clearBat(){
-  const el = document.getElementById(batTargetId);
-  if (el) el.value = "";
-  closeBatPicker();
-}
-
 /* ===== PWA: registrar SW ===== */
 (function init(){
   ensureUASelects();
+  buildPickers();
 
   const dEl = document.getElementById("f_date");
   if (dEl){
@@ -566,18 +632,6 @@ function clearBat(){
   }
   updateAutoNum();
   renderHistory();
-  // Campo de bateria: abrir seletor 1-6 (somente seleção)
-  const bNew = document.getElementById("f_nbat");
-  if (bNew){
-    bNew.addEventListener("click", () => openBatPicker("f_nbat"));
-    bNew.addEventListener("focus", () => openBatPicker("f_nbat"));
-  }
-  const bEdit = document.getElementById("e_nbat");
-  if (bEdit){
-    bEdit.addEventListener("click", () => openBatPicker("e_nbat"));
-    bEdit.addEventListener("focus", () => openBatPicker("e_nbat"));
-  }
-
   renderUAs();
 
   const btnEnd = document.getElementById("btnEnd");
