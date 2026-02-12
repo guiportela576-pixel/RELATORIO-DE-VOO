@@ -282,3 +282,11 @@ button.primary{ background: rgba(0, 229, 255, 0.16); border:1px solid rgba(0,229
 #f_num[readonly]{
   opacity: 0.95;
 }
+
+
+/* Bateria picker */
+.bat-grid{
+  display:grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap:8px;
+}

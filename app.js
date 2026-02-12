@@ -163,8 +163,6 @@ function buildEntryFromForm(){
   const inicio = normalizeStr(getFieldValue("f_inicio"));
   const tempo = normalizeStr(getFieldValue("f_tempo"));
   const ua = normalizeStr(getFieldValue("f_ua"));
-
-  const pousos = normalizeStr(getFieldValue("f_pousos"));
   const ciclos = normalizeStr(getFieldValue("f_ciclos"));
   const nbat = normalizeStr(getFieldValue("f_nbat"));
   const cargaIni = clampPercent(getFieldValue("f_carga_ini"));
@@ -175,7 +173,7 @@ function buildEntryFromForm(){
     id: (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2)),
     date: selectedDate,
     createdAt: new Date().toISOString(),
-    fields: { num, missao, voo, inicio, tempo, ua, pousos, ciclos, nbat, cargaIni, cargaFim, obs }
+    fields: { num, missao, voo, inicio, tempo, ua, ciclos, nbat, cargaIni, cargaFim, obs }
   };
 }
 
@@ -236,7 +234,7 @@ function saveEntry(){
 }
 
 function clearForm(){
-  const ids = ["f_missao","f_voo","f_inicio","f_tempo","f_pousos","f_ciclos","f_nbat","f_carga_ini","f_carga_fim","f_obs"];
+  const ids = ["f_missao","f_voo","f_inicio","f_tempo","f_ciclos","f_nbat","f_carga_ini","f_carga_fim","f_obs"];
   ids.forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = "";
@@ -346,7 +344,7 @@ function renderHistory(){
       <div class="cardline"><strong>DATA:</strong> ${e.date || "-"}</div>
       <div class="cardline"><strong>Nº:</strong> ${f.num || "-"}</div><div class="cardline"><strong>MISSÃO:</strong> ${f.missao || "-"}</div><div class="cardline"><strong>VOO:</strong> ${f.voo || "-"}</div>
       <div class="cardline"><strong>INÍCIO:</strong> ${f.inicio || "-"}</div><div class="cardline"><strong>TEMPO (min):</strong> ${f.tempo || "-"}</div>
-      <div class="cardline"><strong>UA:</strong> ${f.ua || "-"}</div><div class="cardline"><strong>POUSOS:</strong> ${f.pousos || "-"}</div><div class="cardline"><strong>CICLOS:</strong> ${f.ciclos || "-"}</div>
+      <div class="cardline"><strong>UA:</strong> ${f.ua || "-"}</div><div class="cardline"><strong>CICLOS:</strong> ${f.ciclos || "-"}</div>
       <div class="cardline"><strong>Nº BAT:</strong> ${f.nbat || "-"}</div><div class="cardline"><strong>CARGA INI:</strong> ${f.cargaIni || "-"}%</div><div class="cardline"><strong>CARGA FIM:</strong> ${f.cargaFim || "-"}%</div>
       <div class="cardline"><strong>OBS:</strong> ${f.obs || "-"}</div>
 
@@ -471,7 +469,6 @@ function openEditModal(id){
   document.getElementById("e_inicio").value = f.inicio || "";
   document.getElementById("e_tempo").value = f.tempo || "";
   document.getElementById("e_ua").value = f.ua || "";
-  document.getElementById("e_pousos").value = f.pousos || "";
   document.getElementById("e_ciclos").value = f.ciclos || "";
   document.getElementById("e_nbat").value = f.nbat || "";
   document.getElementById("e_carga_ini").value = f.cargaIni || "";
@@ -501,7 +498,6 @@ function saveEdit(){
     inicio: normalizeStr(document.getElementById("e_inicio").value),
     tempo: normalizeStr(document.getElementById("e_tempo").value),
     ua: normalizeStr(document.getElementById("e_ua").value),
-    pousos: normalizeStr(document.getElementById("e_pousos").value),
     ciclos: normalizeStr(document.getElementById("e_ciclos").value),
     nbat: normalizeStr(document.getElementById("e_nbat").value),
     cargaIni: clampPercent(document.getElementById("e_carga_ini").value),
@@ -534,6 +530,31 @@ function deleteEdit(){
   showMsg("Registro excluído.");
 }
 
+
+
+/* ===== Bateria (picker 1-6) ===== */
+let batTargetId = "f_nbat";
+
+function openBatPicker(targetId){
+  batTargetId = String(targetId || "f_nbat");
+  const ov = document.getElementById("batOverlay");
+  if (ov) ov.style.display = "flex";
+}
+function closeBatPicker(){
+  const ov = document.getElementById("batOverlay");
+  if (ov) ov.style.display = "none";
+}
+function pickBat(n){
+  const el = document.getElementById(batTargetId);
+  if (el) el.value = String(n);
+  closeBatPicker();
+}
+function clearBat(){
+  const el = document.getElementById(batTargetId);
+  if (el) el.value = "";
+  closeBatPicker();
+}
+
 /* ===== PWA: registrar SW ===== */
 (function init(){
   ensureUASelects();
@@ -545,6 +566,18 @@ function deleteEdit(){
   }
   updateAutoNum();
   renderHistory();
+  // Campo de bateria: abrir seletor 1-6 (somente seleção)
+  const bNew = document.getElementById("f_nbat");
+  if (bNew){
+    bNew.addEventListener("click", () => openBatPicker("f_nbat"));
+    bNew.addEventListener("focus", () => openBatPicker("f_nbat"));
+  }
+  const bEdit = document.getElementById("e_nbat");
+  if (bEdit){
+    bEdit.addEventListener("click", () => openBatPicker("e_nbat"));
+    bEdit.addEventListener("focus", () => openBatPicker("e_nbat"));
+  }
+
   renderUAs();
 
   const btnEnd = document.getElementById("btnEnd");

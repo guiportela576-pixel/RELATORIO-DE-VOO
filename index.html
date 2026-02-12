@@ -44,25 +44,25 @@
         <div id="runMsg" class="op-msg" style="display:none;"></div>
 
         <div class="grid">
-          <input type="date" id="f_date" class="span-2" />
-          <input type="number" id="f_num" placeholder="Nº (automático)" min="1" readonly />
-          <input type="text" id="f_missao" placeholder="Missão (opcional)" />
+<input type="date" id="f_date" class="span-2" />
 
-          <input type="text" id="f_voo" placeholder="Voo (opcional)" />
-          <input type="time" id="f_inicio" placeholder="Início (HH:MM)" />
+<input type="time" id="f_inicio" placeholder="Início (automático)" readonly />
+<input type="number" id="f_tempo" placeholder="Tempo de voo (min) (automático)" min="1" readonly />
 
-          <input type="number" id="f_tempo" placeholder="Tempo de voo (min)" min="1" />
-          <select id="f_ua"></select>
+<input type="number" id="f_num" placeholder="Nº (automático)" min="1" readonly />
+<input type="text" id="f_missao" placeholder="Missão (opcional)" />
 
-          <input type="number" id="f_pousos" placeholder="Pousos (opcional)" min="0" />
-          <input type="number" id="f_ciclos" placeholder="Ciclos (opcional)" min="0" />
+<input type="text" id="f_voo" placeholder="Voo (opcional)" />
+<select id="f_ua"></select>
 
-          <input type="text" id="f_nbat" placeholder="Nº Bat (opcional)" />
-          <input type="number" id="f_carga_ini" placeholder="Carga inicial (%)" min="0" max="100" />
+<input type="number" id="f_ciclos" placeholder="Ciclos (opcional)" min="0" />
+<input type="text" id="f_nbat" placeholder="Nº Bat (selecione)" readonly />
 
-          <input type="number" id="f_carga_fim" class="span-2" placeholder="Carga final (%)" min="0" max="100" />
-          <textarea id="f_obs" class="span-2" placeholder="Observação (opcional)"></textarea>
-        </div>
+<input type="number" id="f_carga_ini" placeholder="Carga inicial (%)" min="0" max="100" />
+<input type="number" id="f_carga_fim" placeholder="Carga final (%)" min="0" max="100" />
+
+<textarea id="f_obs" class="span-2" placeholder="Observação (opcional)"></textarea>
+</div>
 
         <div class="row" style="margin-top:10px;">
           <button class="primary" type="button" onclick="saveEntry()">Salvar</button>
@@ -133,30 +133,55 @@
         <div class="modal-sub" id="modalSub">—</div>
 
         <div class="grid" style="margin-top:10px;">
-          <input type="number" id="e_num" placeholder="Nº (opcional)" min="1" />
-          <input type="text" id="e_missao" placeholder="Missão (opcional)" />
+<input type="number" id="e_num" placeholder="Nº (opcional)" min="1" />
+<input type="text" id="e_missao" placeholder="Missão (opcional)" />
 
-          <input type="text" id="e_voo" placeholder="Voo (opcional)" />
-          <input type="time" id="e_inicio" placeholder="Início (HH:MM)" />
+<input type="text" id="e_voo" placeholder="Voo (opcional)" />
+<input type="time" id="e_inicio" placeholder="Início (HH:MM)" readonly />
 
-          <input type="number" id="e_tempo" placeholder="Tempo de voo (min)" min="1" />
-          <select id="e_ua"></select>
+<input type="number" id="e_tempo" placeholder="Tempo de voo (min)" min="1" readonly />
+<select id="e_ua"></select>
 
-          <input type="number" id="e_pousos" placeholder="Pousos (opcional)" min="0" />
-          <input type="number" id="e_ciclos" placeholder="Ciclos (opcional)" min="0" />
+<input type="number" id="e_ciclos" placeholder="Ciclos (opcional)" min="0" />
+<input type="text" id="e_nbat" placeholder="Nº Bat (selecione)" readonly />
 
-          <input type="text" id="e_nbat" placeholder="Nº Bat (opcional)" />
-          <input type="number" id="e_carga_ini" placeholder="Carga inicial (%)" min="0" max="100" />
+<input type="number" id="e_carga_ini" placeholder="Carga inicial (%)" min="0" max="100" />
+<input type="number" id="e_carga_fim" class="span-2" placeholder="Carga final (%)" min="0" max="100" />
 
-          <input type="number" id="e_carga_fim" class="span-2" placeholder="Carga final (%)" min="0" max="100" />
-          <textarea id="e_obs" class="span-2" placeholder="Observação (opcional)"></textarea>
-        </div>
+<textarea id="e_obs" class="span-2" placeholder="Observação (opcional)"></textarea>
+</div>
 
         <div class="row" style="margin-top:10px;">
           <button class="primary" type="button" onclick="saveEdit()">Salvar</button>
           <button class="ghost" type="button" onclick="deleteEdit()">Excluir</button>
         </div>
-      </div>
+      
+<!-- ======= MODAL: SELECIONAR BATERIA ======= -->
+<div id="batOverlay" class="modal-overlay" style="display:none;">
+  <div class="modal-card">
+    <div class="modal-header">
+      <h2>Selecionar bateria</h2>
+      <button type="button" class="icon-btn" onclick="closeBatPicker()">✖</button>
+    </div>
+
+    <div class="hint" style="margin-top:8px;">Escolha um número de 1 a 6</div>
+
+    <div class="bat-grid" style="margin-top:10px;">
+      <button type="button" onclick="pickBat(1)">1</button>
+      <button type="button" onclick="pickBat(2)">2</button>
+      <button type="button" onclick="pickBat(3)">3</button>
+      <button type="button" onclick="pickBat(4)">4</button>
+      <button type="button" onclick="pickBat(5)">5</button>
+      <button type="button" onclick="pickBat(6)">6</button>
+    </div>
+
+    <div class="row" style="margin-top:10px;">
+      <button type="button" class="ghost" onclick="clearBat()">Limpar</button>
+    </div>
+  </div>
+</div>
+
+</div>
     </div>
 
     <footer class="tabs-footer" aria-hidden="true"></footer>
