@@ -370,3 +370,26 @@ select::-ms-expand{ display:none; }
 
 /* Nº automático (readonly) */
 #f_num[readonly]{ opacity: 0.98; }
+
+
+/* ===== Ajuste layout Inicio / Tempo ===== */
+#f_inicio,
+#f_tempo{
+  min-width: 0;
+}
+
+/* garante que os dois ocupem exatamente 1 coluna cada */
+.field:not(.span-2){
+  min-width: 0;
+}
+
+
+/* ===== Ajuste filtros Histórico ===== */
+#tab-history .grid{
+  grid-template-columns: 1fr 1fr;
+}
+
+#filterDate,
+#filterUA{
+  min-width: 0;
+}
