@@ -51,23 +51,23 @@
 
   <div class="field">
     <label for="f_inicio">Início (auto)</label>
-    <input type="time" id="f_inicio" placeholder="Início (HH:MM)" readonly />
+    <input type="time" id="f_inicio" readonly />
   </div>
 
   <div class="field">
     <label for="f_tempo">Tempo de voo (min) (auto)</label>
-    <input type="number" id="f_tempo" placeholder="Tempo de voo (min)" min="1" readonly />
+    <input type="number" id="f_tempo" min="1" readonly />
   </div>
 
   <div class="field">
     <label for="f_num">Nº (automático)</label>
-    <input type="number" id="f_num" placeholder="Nº (automático)" min="1" readonly />
+    <input type="number" id="f_num" min="1" readonly />
   </div>
 
   <div class="field">
     <label for="f_missao">Missão (opcional)</label>
     <select id="f_missao">
-      <option value="">Missão (opcional)</option>
+      <option value=""></option>
       <option value="1">1</option>
 <option value="2">2</option>
 <option value="3">3</option>
@@ -103,7 +103,7 @@
 
   <div class="field span-2">
     <label for="f_voo">Voo (opcional)</label>
-    <input type="text" id="f_voo" placeholder="Voo (opcional)" />
+    <input type="text" id="f_voo" />
   </div>
 
   <div class="field span-2">
@@ -114,7 +114,7 @@
   <div class="field">
     <label for="f_ciclos">Ciclos (opcional)</label>
     <select id="f_ciclos">
-      <option value="">Ciclos (opcional)</option>
+      <option value=""></option>
       <option value="0">0</option>
 <option value="1">1</option>
 <option value="2">2</option>
@@ -522,7 +522,7 @@
   <div class="field">
     <label for="f_nbat">Nº Bat (opcional)</label>
     <select id="f_nbat">
-      <option value="">Nº Bat (opcional)</option>
+      <option value=""></option>
       <option value="1">1</option>
 <option value="2">2</option>
 <option value="3">3</option>
@@ -535,7 +535,7 @@
   <div class="field">
     <label for="f_carga_ini">Carga inicial (%)</label>
     <select id="f_carga_ini">
-      <option value="">Carga inicial (%)</option>
+      <option value=""></option>
       <option value="100">100%</option>
 <option value="99">99%</option>
 <option value="98">98%</option>
@@ -643,7 +643,7 @@
   <div class="field">
     <label for="f_carga_fim">Carga final (%)</label>
     <select id="f_carga_fim">
-      <option value="">Carga final (%)</option>
+      <option value=""></option>
       <option value="0">0%</option>
 <option value="1">1%</option>
 <option value="2">2%</option>
@@ -750,7 +750,7 @@
 
   <div class="field span-2">
     <label for="f_obs">Observação (opcional)</label>
-    <textarea id="f_obs" class="span-2" placeholder="Observação (opcional)"></textarea>
+    <textarea id="f_obs" class="span-2"></textarea>
   </div>
 </div></div>
 
@@ -792,7 +792,7 @@
         <p class="hint">Cadastre aqui suas UAs para não precisar digitar toda vez.</p>
 
         <div class="grid">
-          <input type="text" id="uaNew" class="span-2" placeholder="Digite uma UA (ex: MAVIC 2 ZOOM)" />
+          <input type="text" id="uaNew" class="span-2" />
         </div>
         <div class="row" style="margin-top:8px;">
           <button type="button" onclick="addUA()">Adicionar</button>
@@ -824,9 +824,9 @@
         <div class="modal-sub" id="modalSub">—</div>
 
         <div class="grid" style="margin-top:10px;">
-          <input type="number" id="e_num" placeholder="Nº (opcional)" min="1" />
+          <input type="number" id="e_num" min="1" />
           <select id="e_missao">
-<option value="">Missão (opcional)</option>
+<option value=""></option>
 <option value="1">1</option>
 <option value="2">2</option>
 <option value="3">3</option>
@@ -859,10 +859,10 @@
 <option value="30">30</option>
 </select>
 
-          <input type="text" id="e_voo" placeholder="Voo (opcional)" />
-          <input type="time" id="e_inicio" placeholder="Início (HH:MM)" />
+          <input type="text" id="e_voo" />
+          <input type="time" id="e_inicio" />
 
-          <input type="number" id="e_tempo" placeholder="Tempo de voo (min)" min="1" />
+          <input type="number" id="e_tempo" min="1" />
           <select id="e_ua"></select>
 
           <select id="e_ciclos"></select>
@@ -871,7 +871,7 @@
           <select id="e_carga_ini"></select>
           <select id="e_carga_fim" class="span-2"></select>
 
-          <textarea id="e_obs" class="span-2" placeholder="Observação (opcional)"></textarea>
+          <textarea id="e_obs" class="span-2"></textarea>
         </div>
 
         <div class="row" style="margin-top:10px;">
