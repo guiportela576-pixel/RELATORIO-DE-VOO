@@ -424,3 +424,35 @@ input[type="date"], input[type="time"]{
   min-width: 0;
   min-inline-size: 0;
 }
+
+
+/* ===== Fix sobreposição definitivo (v15) ===== */
+#tab-new .grid,
+#tab-history .grid{
+  grid-template-columns: minmax(0,1fr) minmax(0,1fr);
+}
+
+/* cada item do grid pode encolher */
+#tab-new .grid > *,
+#tab-history .grid > *{
+  min-width: 0 !important;
+  min-inline-size: 0 !important;
+  overflow: hidden;
+}
+
+/* inputs/selects sempre respeitam a coluna */
+#tab-new input, #tab-new select, #tab-new textarea,
+#tab-history input, #tab-history select{
+  width: 100%;
+  min-width: 0 !important;
+  min-inline-size: 0 !important;
+  display: block;
+}
+
+/* fallback em telas muito estreitas: não deixa sobrepor, empilha */
+@media (max-width: 380px){
+  #tab-new .grid,
+  #tab-history .grid{
+    grid-template-columns: 1fr;
+  }
+}
