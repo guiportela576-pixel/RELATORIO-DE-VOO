@@ -282,3 +282,18 @@ button.primary{ background: rgba(0, 229, 255, 0.16); border:1px solid rgba(0,229
 #f_num[readonly]{
   opacity: 0.95;
 }
+
+
+/* ===== Labels acima dos campos (v1.4) ===== */
+.field{
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+}
+.field label{
+  font-size:12px;
+  font-weight:900;
+  color: rgba(230,245,255,0.70);
+  padding-left: 2px;
+}
+.field.span-2{ grid-column: 1 / -1; }

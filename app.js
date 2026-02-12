@@ -381,6 +381,83 @@ function exportTextAll(){
   copyText(text);
 }
 
+
+function exportPdfDay(){
+  // Exporta PDF (via impressão do navegador) com TODOS os voos do dia selecionado.
+  // Se não houver data no filtro, usa a data de hoje.
+  const date = normalizeStr(document.getElementById("filterDate")?.value) || todayISO();
+
+  // Ignora filtro de UA para o PDF: sempre exporta tudo do dia.
+  const list = [...entries]
+    .filter(e => e?.date === date)
+    .sort((a,b) => String(a.createdAt||"").localeCompare(String(b.createdAt||"")));
+
+  if (!list.length){
+    alert("Não há voos para exportar nessa data.");
+    return;
+  }
+
+  const rows = list.map(e => {
+    const f = e.fields || {};
+    // Mesmo formato do histórico (linhas DATA, Nº, etc.)
+    return `
+      <div class="item">
+        <div class="cardline"><strong>DATA:</strong> ${e.date || "-"}</div>
+        <div class="cardline"><strong>Nº:</strong> ${f.num || "-"}</div>
+        <div class="cardline"><strong>MISSÃO:</strong> ${f.missao || "-"}</div>
+        <div class="cardline"><strong>VOO:</strong> ${f.voo || "-"}</div>
+        <div class="cardline"><strong>INÍCIO:</strong> ${f.inicio || "-"}</div>
+        <div class="cardline"><strong>TEMPO (min):</strong> ${f.tempo || "-"}</div>
+        <div class="cardline"><strong>UA:</strong> ${f.ua || "-"}</div>
+        <div class="cardline"><strong>CICLOS:</strong> ${f.ciclos || "-"}</div>
+        <div class="cardline"><strong>Nº BAT:</strong> ${f.nbat || "-"}</div>
+        <div class="cardline"><strong>CARGA INI:</strong> ${f.cargaIni || "-"}%</div>
+        <div class="cardline"><strong>CARGA FIM:</strong> ${f.cargaFim || "-"}%</div>
+        <div class="cardline"><strong>OBS:</strong> ${f.obs || "-"}</div>
+      </div>
+    `;
+  }).join("\n");
+
+  const title = `Relatório de Voo - ${date}`;
+  const html = `<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>${title}</title>
+  <style>
+    body{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; margin: 20px; color:#111; }
+    h1{ font-size: 18px; margin: 0 0 10px 0; }
+    .sub{ font-size: 12px; margin-bottom: 16px; color:#333; }
+    .item{ padding: 10px 0; border-bottom: 1px solid #ddd; }
+    .item:last-child{ border-bottom:none; }
+    .cardline{ font-size: 14px; font-weight: 600; margin: 4px 0; }
+    .cardline strong{ font-weight: 800; }
+    @media print{
+      body{ margin: 10mm; }
+      .item{ page-break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <h1>${title}</h1>
+  <div class="sub">Voos do dia no mesmo formato do histórico.</div>
+  ${rows}
+</body>
+</html>`;
+
+  const w = window.open("", "_blank");
+  if (!w){
+    alert("Não consegui abrir a janela de impressão. Verifique se o navegador bloqueou pop-up.");
+    return;
+  }
+  w.document.open();
+  w.document.write(html);
+  w.document.close();
+  w.focus();
+  w.print();
+}
+
 function getFilteredEntries(){
   const d = normalizeStr(document.getElementById("filterDate")?.value);
   const ua = normalizeStr(document.getElementById("filterUA")?.value);
