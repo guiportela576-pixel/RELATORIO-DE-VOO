@@ -1,15 +1,13 @@
 // Relatório de Voo (PWA) - armazenamento local
-const APP_VERSION = "1.2.2";
+const APP_VERSION = "1.1.0";
 const VERSION_HISTORY = [
-  "1.2.2 - Correção: botões/tabs voltaram a funcionar (erro JS) + VOO decimal no teclado",
-  "1.2.0 - Códigos de operação + total de minutos do dia + export PDF corrigido (Android/iOS) + teclado numérico (Voo/Cargas)",
   "1.1.0 - Campos automáticos (início/tempo) + seletores (bat/ciclos/carga) + remoção de pousos + novo ícone",
-  "1.0.0 - App inicial (novo + histórico + UA + cronômetro)"];
+  "1.0.0 - App inicial (novo + histórico + UA + cronômetro)"
+];
 
 let entries = JSON.parse(localStorage.getItem("flightReports")) || [];
 let uas = JSON.parse(localStorage.getItem("uas")) || [];
 let defaultUA = localStorage.getItem("defaultUA") || "";
-let opCodes = JSON.parse(localStorage.getItem("opCodes")) || [];
 
 let runStartMs = null; // cronômetro
 let lastStartedAt = null; // string HH:MM
@@ -18,7 +16,6 @@ function saveAll(){
   localStorage.setItem("flightReports", JSON.stringify(Array.isArray(entries) ? entries : []));
   localStorage.setItem("uas", JSON.stringify(Array.isArray(uas) ? uas : []));
   localStorage.setItem("defaultUA", String(defaultUA || ""));
-  localStorage.setItem("opCodes", JSON.stringify(Array.isArray(opCodes) ? opCodes : []));
 }
 
 function pad2(n){ return String(n).padStart(2, "0"); }
@@ -33,11 +30,6 @@ function minutesBetween(startMs, endMs){
 }
 function normalizeStr(s){
   return String(s || "").trim().replace(/\s+/g, " ");
-}
-
-// Permite decimal com ponto (aceita vírgula e converte)
-function normalizeDecimalDots(s){
-  return normalizeStr(s).replace(/,/g, '.').replace(/[^0-9.]/g, '');
 }
 function showMsg(text){
   const el = document.getElementById("runMsg");
@@ -63,7 +55,7 @@ function showTab(key){
   });
 
   if (key === "history") renderHistory();
-  if (key === "new") { ensureCodeSelects(); updateAutoNum(); }
+  if (key === "new") updateAutoNum();
   if (key === "uas") renderUAs();
 }
 
@@ -71,8 +63,6 @@ function showTab(key){
 function fillSelect(id, placeholder, options){
   const sel = document.getElementById(id);
   if (!sel) return;
-  if (String(sel.tagName||"").toUpperCase() !== "SELECT") return;
-  if (String(sel.tagName || "").toUpperCase() !== "SELECT") return; // não mexe em inputs
 
   const prev = sel.value;
   sel.innerHTML = "";
@@ -170,101 +160,6 @@ function ensureUASelects(){
   if (selectNew && defaultUA && uas.includes(defaultUA)) selectNew.value = defaultUA;
 }
 
-function ensureCodeSelects(){
-  const elNew = document.getElementById("f_codigo"); // agora é input readonly
-  const selEdit = document.getElementById("e_codigo"); // mantém select no modal de edição
-
-  // atualiza input (novo)
-  if (elNew){
-    const cur = normalizeStr(elNew.value);
-    const list = (Array.isArray(opCodes) ? opCodes : []).map(c => normalizeStr(c)).filter(Boolean);
-
-    // se o valor atual não existe mais, limpa
-    if (cur && !list.includes(cur)) elNew.value = "";
-
-    // placeholder simples
-    if (!elNew.value) elNew.placeholder = "Toque para selecionar";
-  }
-
-  const buildSelect = (sel, placeholder) => {
-    if (!sel) return;
-    if (String(sel.tagName || "").toUpperCase() !== "SELECT") return;
-    const prev = sel.value;
-    sel.innerHTML = "";
-
-    const opt0 = document.createElement("option");
-    opt0.value = "";
-    opt0.textContent = placeholder;
-    sel.appendChild(opt0);
-
-    (Array.isArray(opCodes) ? opCodes : []).forEach(c => {
-      const code = normalizeStr(c);
-      if (!code) return;
-      const opt = document.createElement("option");
-      opt.value = code;
-      opt.textContent = code;
-      sel.appendChild(opt);
-    });
-
-    if (prev && Array.from(sel.options).some(o => o.value === prev)) sel.value = prev;
-  };
-
-  buildSelect(selEdit, "Código (opcional)");
-}
-
-
-/* ===== Code Picker (Tela cheia) ===== */
-let codePickerOpen = false;
-
-function renderCodePicker(){
-  const ul = document.getElementById("codePickerList");
-  if (!ul) return;
-  ul.innerHTML = "";
-
-  const list = (Array.isArray(opCodes) ? opCodes : []).map(c => normalizeStr(c)).filter(Boolean);
-  if (!list.length){
-    const li = document.createElement("li");
-    li.textContent = "Nenhum código cadastrado ainda (cadastre na aba UA).";
-    ul.appendChild(li);
-    return;
-  }
-
-  list.forEach(code => {
-    const li = document.createElement("li");
-    li.innerHTML = `<button type="button" class="picker-item" onclick="selectCode('${code.replace(/'/g, "\'")}')">${code}</button>`;
-    ul.appendChild(li);
-  });
-}
-
-function openCodePicker(){
-  const modal = document.getElementById("codePickerModal");
-  if (!modal) return;
-  codePickerOpen = true;
-  renderCodePicker();
-  modal.style.display = "flex";
-}
-
-function closeCodePicker(){
-  const modal = document.getElementById("codePickerModal");
-  if (!modal) return;
-  codePickerOpen = false;
-  modal.style.display = "none";
-}
-
-function codePickerBackdrop(ev){
-  // fecha ao tocar no fundo
-  if (!ev) return;
-  const modal = document.getElementById("codePickerModal");
-  if (!modal) return;
-  if (ev.target === modal) closeCodePicker();
-}
-
-function selectCode(code){
-  const input = document.getElementById("f_codigo");
-  if (input) input.value = normalizeStr(code);
-  closeCodePicker();
-}
-
 function startFlight(){
   const inicio = document.getElementById("f_inicio");
   const tempo = document.getElementById("f_tempo");
@@ -309,24 +204,6 @@ function endFlight(){
   if (btnStart) btnStart.disabled = false;
   if (btnEnd) btnEnd.disabled = true;
 
-  // Força separador decimal com ponto no campo VOO (aceita também vírgula e converte)
-  function bindDotDecimal(id){
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.addEventListener("input", () => {
-      let v = String(el.value || "");
-      v = v.replace(/,/g, ".");
-      v = v.replace(/[^0-9.]/g, "");
-      const parts = v.split(".");
-      if (parts.length > 2){
-        v = parts[0] + "." + parts.slice(1).join("");
-      }
-      el.value = v;
-    });
-  }
-  bindDotDecimal("f_voo");
-  bindDotDecimal("e_voo");
-
   const h = normalizeStr(inicio?.value) || (lastStartedAt || "—");
   showMsg(`Voo encerrado - ${mins} min (início ${h})`);
 }
@@ -346,8 +223,7 @@ function buildEntryFromForm(){
 
   const num = normalizeStr(getFieldValue("f_num"));
   const missao = normalizeStr(getFieldValue("f_missao"));
-  const codigo = normalizeStr(getFieldValue("f_codigo"));
-  const voo = normalizeDecimalDots(getFieldValue("f_voo"));
+  const voo = normalizeStr(getFieldValue("f_voo"));
   const inicio = normalizeStr(getFieldValue("f_inicio")); // automático
   const tempo = normalizeStr(getFieldValue("f_tempo"));   // automático
   const ua = normalizeStr(getFieldValue("f_ua"));
@@ -362,7 +238,7 @@ function buildEntryFromForm(){
     id: (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2)),
     date: selectedDate,
     createdAt: new Date().toISOString(),
-    fields: { num, missao, codigo, voo, inicio, tempo, ua, ciclos, nbat, cargaIni, cargaFim, obs }
+    fields: { num, missao, voo, inicio, tempo, ua, ciclos, nbat, cargaIni, cargaFim, obs }
   };
 }
 
@@ -434,7 +310,7 @@ function saveEntry(){
 }
 
 function clearForm(){
-  const ids = ["f_missao","f_codigo","f_voo","f_inicio","f_tempo","f_obs"];
+  const ids = ["f_missao","f_voo","f_inicio","f_tempo","f_obs"];
   ids.forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = "";
@@ -467,7 +343,6 @@ function formatForCopy(e){
     `DATA: ${e.date || "-"}`,
     `Nº: ${f.num || "-"}`,
     `MISSÃO: ${f.missao || "-"}`,
-    `CÓDIGO: ${f.codigo || "-"}`,
     `VOO: ${f.voo || "-"}`,
     `HORÁRIO - INÍCIO: ${f.inicio || "-"}`,
     `TEMPO DE VOO (MIN): ${f.tempo || "-"}`,
@@ -512,6 +387,7 @@ function exportPdfDay(){
   // Se não houver data no filtro, usa a data de hoje.
   const date = normalizeStr(document.getElementById("filterDate")?.value) || todayISO();
 
+  // Exporta tudo do dia (ignora filtro de UA)
   const list = [...entries]
     .filter(e => e?.date === date)
     .sort((a,b) => String(a.createdAt||"").localeCompare(String(b.createdAt||"")));
@@ -528,7 +404,6 @@ function exportPdfDay(){
         <div class="cardline"><strong>DATA:</strong> ${e.date || "-"}</div>
         <div class="cardline"><strong>Nº:</strong> ${f.num || "-"}</div>
         <div class="cardline"><strong>MISSÃO:</strong> ${f.missao || "-"}</div>
-        <div class="cardline"><strong>CÓDIGO:</strong> ${f.codigo || "-"}</div>
         <div class="cardline"><strong>VOO:</strong> ${f.voo || "-"}</div>
         <div class="cardline"><strong>INÍCIO:</strong> ${f.inicio || "-"}</div>
         <div class="cardline"><strong>TEMPO (min):</strong> ${f.tempo || "-"}</div>
@@ -570,52 +445,17 @@ function exportPdfDay(){
 </body>
 </html>`;
 
-  openPdfPreview(html, title);
-}
-
-function openPdfPreview(html, title){
-  const overlay = document.getElementById("pdfOverlay");
-  const frame = document.getElementById("pdfFrame");
-  const t = document.getElementById("pdfTitle");
-  if (!overlay || !frame) {
-    // fallback (caso o HTML não tenha o modal)
-    const w = window.open("", "_blank");
-    if (!w){
-      alert("Não consegui abrir a janela de impressão. Verifique se o navegador bloqueou pop-up.");
-      return;
-    }
-    w.document.open();
-    w.document.write(html);
-    w.document.close();
-    w.focus();
-    w.print();
+  const w = window.open("", "_blank");
+  if (!w){
+    alert("Não consegui abrir a janela de impressão. Verifique se o navegador bloqueou pop-up.");
     return;
   }
-
-  if (t) t.textContent = title || "Prévia";
-  // srcdoc funciona bem em iOS/Android e mantém o app aberto com botão de fechar
-  frame.srcdoc = html;
-  overlay.style.display = "flex";
+  w.document.open();
+  w.document.write(html);
+  w.document.close();
+  w.focus();
+  w.print();
 }
-
-function closePdfPreview(){
-  const overlay = document.getElementById("pdfOverlay");
-  const frame = document.getElementById("pdfFrame");
-  if (frame) frame.srcdoc = "";
-  if (overlay) overlay.style.display = "none";
-}
-
-function printPdfPreview(){
-  const frame = document.getElementById("pdfFrame");
-  if (!frame) return;
-  try{
-    frame.contentWindow.focus();
-    frame.contentWindow.print();
-  }catch(e){
-    alert("Não consegui abrir a impressão aqui. Tente novamente.");
-  }
-}
-
 
 function getFilteredEntries(){
   const d = normalizeStr(document.getElementById("filterDate")?.value);
@@ -648,17 +488,6 @@ function renderHistory(){
   ul.innerHTML = "";
   const list = getFilteredEntries();
 
-  // total de minutos do dia (somente o dia do filtro ou hoje)
-  const dayTotalEl = document.getElementById("dayTotal");
-  if (dayTotalEl){
-    const day = normalizeStr(document.getElementById("filterDate")?.value) || todayISO();
-    const total = entries
-      .filter(e => e?.date === day)
-      .reduce((acc, e) => acc + (Number(e?.fields?.tempo) || 0), 0);
-    dayTotalEl.textContent = `Total voado em ${day}: ${total} min`;
-    dayTotalEl.style.display = "block";
-  }
-
   if (!list.length){
     if (empty) empty.style.display = "block";
     return;
@@ -672,7 +501,6 @@ function renderHistory(){
       <div class="cardline"><strong>DATA:</strong> ${e.date || "-"}</div>
       <div class="cardline"><strong>Nº:</strong> ${f.num || "-"}</div>
       <div class="cardline"><strong>MISSÃO:</strong> ${f.missao || "-"}</div>
-      <div class="cardline"><strong>CÓDIGO:</strong> ${f.codigo || "-"}</div>
       <div class="cardline"><strong>VOO:</strong> ${f.voo || "-"}</div>
       <div class="cardline"><strong>INÍCIO:</strong> ${f.inicio || "-"}</div>
       <div class="cardline"><strong>TEMPO (min):</strong> ${f.tempo || "-"}</div>
@@ -701,7 +529,6 @@ function copyOne(id){
 /* ===== UA ===== */
 function renderUAs(){
   ensureUASelects();
-  ensureCodeSelects();
 
   const ul = document.getElementById("uaList");
   if (ul){
@@ -732,81 +559,12 @@ function renderUAs(){
   const vh = document.getElementById("versionHistory");
   if (vh){
     vh.innerHTML = "";
-    renderCodes();
-
     VERSION_HISTORY.forEach(item => {
       const li = document.createElement("li");
       li.textContent = item;
       vh.appendChild(li);
     });
   }
-}
-
-
-/* ===== CÓDIGOS DE OPERAÇÃO ===== */
-function renderCodes(){
-  const ul = document.getElementById("codeList");
-  if (!ul) return;
-  ul.innerHTML = "";
-
-  const list = [...opCodes];
-  if (!list.length){
-    const li = document.createElement("li");
-    li.textContent = "Nenhum código cadastrado ainda.";
-    ul.appendChild(li);
-    return;
-  }
-
-  list.forEach((c, i) => {
-    const li = document.createElement("li");
-    li.innerHTML = `
-      <div class="cardline">${c}</div>
-      <div class="actions">
-        <button type="button" class="ghost" onclick="editCode(${i})">Editar</button>
-        <button type="button" onclick="deleteCode(${i})">Excluir</button>
-      </div>
-    `;
-    ul.appendChild(li);
-  });
-}
-
-function addCode(){
-  const input = document.getElementById("codeNew");
-  const val = normalizeStr(input?.value);
-  if (!val) return;
-  if (!opCodes.includes(val)) opCodes.push(val);
-  opCodes.sort((a,b) => a.localeCompare(b, "pt-BR", {numeric:true, sensitivity:"base"}));
-  if (input) input.value = "";
-  saveAll();
-  ensureCodeSelects();
-  renderCodes();
-  showMsg("Código cadastrado!");
-}
-
-function editCode(i){
-  const cur = normalizeStr(opCodes?.[i]);
-  if (!cur){ alert("Código inválido."); return; }
-  const nv = normalizeStr(prompt("Editar código:", cur));
-  if (!nv) return;
-  if (nv !== cur && opCodes.includes(nv)){
-    alert("Esse código já existe.");
-    return;
-  }
-  opCodes[i] = nv;
-  saveAll();
-  ensureCodeSelects();
-  renderCodes();
-  showMsg("Código atualizado!");
-}
-
-function deleteCode(i){
-  if (!Number.isFinite(i) || i < 0 || i >= opCodes.length) return;
-  if (!confirm("Excluir este código?")) return;
-  opCodes.splice(i,1);
-  saveAll();
-  ensureCodeSelects();
-  renderCodes();
-  showMsg("Código excluído!");
 }
 
 function addUA(){
@@ -872,9 +630,6 @@ function openEditModal(id){
 
   document.getElementById("e_num").value = f.num || "";
   document.getElementById("e_missao").value = f.missao || "";
-    ensureCodeSelects();
-    const ec = document.getElementById("e_codigo");
-    if (ec) ec.value = f.codigo || "";
   document.getElementById("e_voo").value = f.voo || "";
   document.getElementById("e_inicio").value = f.inicio || "";
   document.getElementById("e_tempo").value = f.tempo || "";
@@ -905,8 +660,7 @@ function saveEdit(){
   const nf = {
     num: normalizeStr(document.getElementById("e_num").value),
     missao: normalizeStr(document.getElementById("e_missao").value),
-    codigo: normalizeStr(document.getElementById("e_codigo")?.value),
-    voo: normalizeDecimalDots(document.getElementById("e_voo").value),
+    voo: normalizeStr(document.getElementById("e_voo").value),
     inicio: normalizeStr(document.getElementById("e_inicio").value),
     tempo: normalizeStr(document.getElementById("e_tempo").value),
     ua: normalizeStr(document.getElementById("e_ua").value),
@@ -945,7 +699,6 @@ function deleteEdit(){
 /* ===== PWA: registrar SW ===== */
 (function init(){
   ensureUASelects();
-  ensureCodeSelects();
   buildPickers();
 
   const dEl = document.getElementById("f_date");
@@ -959,66 +712,6 @@ function deleteEdit(){
 
   const btnEnd = document.getElementById("btnEnd");
   if (btnEnd) btnEnd.disabled = true;
-
-  // Força separador decimal com ponto no campo VOO (aceita também vírgula e converte)
-  function bindDotDecimal(id){
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.addEventListener('input', () => {
-      const v = String(el.value || '');
-      // troca vírgula por ponto e remove caracteres não permitidos
-      let out = v.replace(/,/g, '.').replace(/[^0-9.]/g, '');
-      // evita mais de um ponto
-      const parts = out.split('.');
-      if (parts.length > 2){
-        out = parts[0] + '.' + parts.slice(1).join('');
-      }
-      if (out !== v) el.value = out;
-    });
-  }
-  bindDotDecimal('f_voo');
-  bindDotDecimal('e_voo');
-
-  // Força separador decimal com ponto no campo VOO (aceita também vírgula e converte)
-  function bindDotDecimal(id){
-    const el = document.getElementById(id);
-    if (!el) return;
-    const fix = () => {
-      let v = String(el.value || '');
-      v = v.replace(/,/g, '.');
-      v = v.replace(/[^0-9.]/g, '');
-      // evita mais de um ponto
-      const parts = v.split('.');
-      if (parts.length > 2){
-        v = parts[0] + '.' + parts.slice(1).join('');
-      }
-      el.value = v;
-    };
-    el.addEventListener('input', fix);
-    el.addEventListener('blur', fix);
-  }
-  bindDotDecimal('f_voo');
-  bindDotDecimal('e_voo');
-
-  // Força separador decimal com ponto no campo VOO (aceita também vírgula e converte)
-  function bindDotDecimal(id){
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.addEventListener('input', () => {
-      const v = String(el.value || '');
-      // mantém só dígitos e separadores, troca vírgula por ponto
-      let out = v.replace(/,/g, '.').replace(/[^0-9.]/g, '');
-      // evita múltiplos pontos
-      const parts = out.split('.');
-      if (parts.length > 2){
-        out = parts[0] + '.' + parts.slice(1).join('');
-      }
-      if (out !== v) el.value = out;
-    });
-  }
-  bindDotDecimal('f_voo');
-  bindDotDecimal('e_voo');
-
 
   if ("serviceWorker" in navigator){
     navigator.serviceWorker.register("./service-worker.js").catch(() => {});
