@@ -568,3 +568,33 @@ input[type="date"], input[type="time"]{
   border: 0;
   background: #fff;
 }
+
+
+/* ===== Code Picker (quase tela cheia) ===== */
+#codePickerModal .modal-card{
+  width: 100%;
+  max-width: 720px;
+  height: 92vh;
+  max-height: 92vh;
+}
+
+/* Botões/itens do picker: 1 linha, um embaixo do outro */
+#codePickerList{ padding: 0; margin: 0; list-style: none; }
+#codePickerList li{ padding: 0; border-bottom: 1px solid rgba(255,255,255,0.10); }
+#codePickerList li:last-child{ border-bottom: none; }
+
+.picker-item{
+  width: 100%;
+  text-align: left;
+  border-radius: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  padding: 14px 6px;
+  font-size: 14px;
+  font-weight: 900;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.picker-item:active{ transform: none; opacity: 0.85; }

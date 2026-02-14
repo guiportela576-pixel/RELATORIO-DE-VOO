@@ -1,5 +1,5 @@
 // Relatório de Voo (PWA) - armazenamento local
-const APP_VERSION = "1.2.0";
+const APP_VERSION = "1.1.1";
 const VERSION_HISTORY = [
   "1.2.0 - Códigos de operação + total de minutos do dia + export PDF corrigido (Android/iOS) + teclado numérico (Voo/Cargas)",
   "1.1.0 - Campos automáticos (início/tempo) + seletores (bat/ciclos/carga) + remoção de pousos + novo ícone",
@@ -66,6 +66,7 @@ function showTab(key){
 function fillSelect(id, placeholder, options){
   const sel = document.getElementById(id);
   if (!sel) return;
+  if (String(sel.tagName||"").toUpperCase() !== "SELECT") return;
   if (String(sel.tagName || "").toUpperCase() !== "SELECT") return; // não mexe em inputs
 
   const prev = sel.value;
@@ -165,10 +166,22 @@ function ensureUASelects(){
 }
 
 function ensureCodeSelects(){
-  const selNew = document.getElementById("f_codigo");
-  const selEdit = document.getElementById("e_codigo");
+  const elNew = document.getElementById("f_codigo"); // agora é input readonly
+  const selEdit = document.getElementById("e_codigo"); // mantém select no modal de edição
 
-  const build = (sel, placeholder) => {
+  // atualiza input (novo)
+  if (elNew){
+    const cur = normalizeStr(elNew.value);
+    const list = (Array.isArray(opCodes) ? opCodes : []).map(c => normalizeStr(c)).filter(Boolean);
+
+    // se o valor atual não existe mais, limpa
+    if (cur && !list.includes(cur)) elNew.value = "";
+
+    // placeholder simples
+    if (!elNew.value) elNew.placeholder = "Toque para selecionar";
+  }
+
+  const buildSelect = (sel, placeholder) => {
     if (!sel) return;
     if (String(sel.tagName || "").toUpperCase() !== "SELECT") return;
     const prev = sel.value;
@@ -191,8 +204,60 @@ function ensureCodeSelects(){
     if (prev && Array.from(sel.options).some(o => o.value === prev)) sel.value = prev;
   };
 
-  build(selNew, "Código (opcional)");
-  build(selEdit, "Código (opcional)");
+  buildSelect(selEdit, "Código (opcional)");
+}
+
+
+/* ===== Code Picker (Tela cheia) ===== */
+let codePickerOpen = false;
+
+function renderCodePicker(){
+  const ul = document.getElementById("codePickerList");
+  if (!ul) return;
+  ul.innerHTML = "";
+
+  const list = (Array.isArray(opCodes) ? opCodes : []).map(c => normalizeStr(c)).filter(Boolean);
+  if (!list.length){
+    const li = document.createElement("li");
+    li.textContent = "Nenhum código cadastrado ainda (cadastre na aba UA).";
+    ul.appendChild(li);
+    return;
+  }
+
+  list.forEach(code => {
+    const li = document.createElement("li");
+    li.innerHTML = `<button type="button" class="picker-item" onclick="selectCode('${code.replace(/'/g, "\'")}')">${code}</button>`;
+    ul.appendChild(li);
+  });
+}
+
+function openCodePicker(){
+  const modal = document.getElementById("codePickerModal");
+  if (!modal) return;
+  codePickerOpen = true;
+  renderCodePicker();
+  modal.style.display = "flex";
+}
+
+function closeCodePicker(){
+  const modal = document.getElementById("codePickerModal");
+  if (!modal) return;
+  codePickerOpen = false;
+  modal.style.display = "none";
+}
+
+function codePickerBackdrop(ev){
+  // fecha ao tocar no fundo
+  if (!ev) return;
+  const modal = document.getElementById("codePickerModal");
+  if (!modal) return;
+  if (ev.target === modal) closeCodePicker();
+}
+
+function selectCode(code){
+  const input = document.getElementById("f_codigo");
+  if (input) input.value = normalizeStr(code);
+  closeCodePicker();
 }
 
 function startFlight(){
@@ -674,6 +739,7 @@ function renderCodes(){
     li.innerHTML = `
       <div class="cardline">${c}</div>
       <div class="actions">
+        <button type="button" class="ghost" onclick="editCode(${i})">Editar</button>
         <button type="button" onclick="deleteCode(${i})">Excluir</button>
       </div>
     `;
@@ -692,6 +758,22 @@ function addCode(){
   ensureCodeSelects();
   renderCodes();
   showMsg("Código cadastrado!");
+}
+
+function editCode(i){
+  const cur = normalizeStr(opCodes?.[i]);
+  if (!cur){ alert("Código inválido."); return; }
+  const nv = normalizeStr(prompt("Editar código:", cur));
+  if (!nv) return;
+  if (nv !== cur && opCodes.includes(nv)){
+    alert("Esse código já existe.");
+    return;
+  }
+  opCodes[i] = nv;
+  saveAll();
+  ensureCodeSelects();
+  renderCodes();
+  showMsg("Código atualizado!");
 }
 
 function deleteCode(i){
