@@ -1,7 +1,7 @@
 // Relatório de Voo (PWA) - armazenamento local
-const APP_VERSION = "1.2.1";
+const APP_VERSION = "1.2.2";
 const VERSION_HISTORY = [
-  "1.2.1 - Ajustes: VOO com ponto (1.1), missão com teclado, código com modal menor + fonte maior",
+  "1.2.2 - Correção: botões/tabs voltaram a funcionar (erro JS) + VOO decimal no teclado",
   "1.2.0 - Códigos de operação + total de minutos do dia + export PDF corrigido (Android/iOS) + teclado numérico (Voo/Cargas)",
   "1.1.0 - Campos automáticos (início/tempo) + seletores (bat/ciclos/carga) + remoção de pousos + novo ícone",
   "1.0.0 - App inicial (novo + histórico + UA + cronômetro)"];
@@ -1019,22 +1019,6 @@ function deleteEdit(){
   bindDotDecimal('f_voo');
   bindDotDecimal('e_voo');
 
-  // Força separador decimal com ponto no campo VOO (aceita também vírgula e converte)
-  const bindDotDecimal = (id) => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.addEventListener('input', () => {
-      let v = String(el.value || '');
-      v = v.replace(/,/g, '.');
-      v = v.replace(/[^0-9.]/g, '');
-      // evita mais de um ponto
-      const parts = v.split('.');
-      if (parts.length > 2) v = parts[0] + '.' + parts.slice(1).join('');
-      el.value = v;
-    });
-  };
-  bindDotDecimal('f_voo');
-  bindDotDecimal('e_voo');
 
   if ("serviceWorker" in navigator){
     navigator.serviceWorker.register("./service-worker.js").catch(() => {});
