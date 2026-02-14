@@ -716,7 +716,7 @@ function renderHistory(){
     const flights = listDay.length;
 const vooText = (flights === 1) ? "1 voo" : `${flights} voos`;
 const label = (day === todayISO()) ? "Total voado hoje" : `Total voado em ${day}`;
-dayTotalEl.textContent = `${label} ${totalMin}min * ${vooText} * ${batText}`;
+dayTotalEl.textContent = `${label}: ${totalMin}min - ${vooText} - ${batText}`;
     dayTotalEl.style.display = "block";
   }
 
