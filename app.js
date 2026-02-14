@@ -1,10 +1,10 @@
 // Relatório de Voo (PWA) - armazenamento local
-const APP_VERSION = "1.1.1";
+const APP_VERSION = "1.2.1";
 const VERSION_HISTORY = [
+  "1.2.1 - Ajustes: VOO com ponto (1.1), missão com teclado, código com modal menor + fonte maior",
   "1.2.0 - Códigos de operação + total de minutos do dia + export PDF corrigido (Android/iOS) + teclado numérico (Voo/Cargas)",
   "1.1.0 - Campos automáticos (início/tempo) + seletores (bat/ciclos/carga) + remoção de pousos + novo ícone",
-  "1.0.0 - App inicial (novo + histórico + UA + cronômetro)"
-];
+  "1.0.0 - App inicial (novo + histórico + UA + cronômetro)"];
 
 let entries = JSON.parse(localStorage.getItem("flightReports")) || [];
 let uas = JSON.parse(localStorage.getItem("uas")) || [];
@@ -33,6 +33,11 @@ function minutesBetween(startMs, endMs){
 }
 function normalizeStr(s){
   return String(s || "").trim().replace(/\s+/g, " ");
+}
+
+// Permite decimal com ponto (aceita vírgula e converte)
+function normalizeDecimalDots(s){
+  return normalizeStr(s).replace(/,/g, '.').replace(/[^0-9.]/g, '');
 }
 function showMsg(text){
   const el = document.getElementById("runMsg");
@@ -304,6 +309,24 @@ function endFlight(){
   if (btnStart) btnStart.disabled = false;
   if (btnEnd) btnEnd.disabled = true;
 
+  // Força separador decimal com ponto no campo VOO (aceita também vírgula e converte)
+  function bindDotDecimal(id){
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener("input", () => {
+      let v = String(el.value || "");
+      v = v.replace(/,/g, ".");
+      v = v.replace(/[^0-9.]/g, "");
+      const parts = v.split(".");
+      if (parts.length > 2){
+        v = parts[0] + "." + parts.slice(1).join("");
+      }
+      el.value = v;
+    });
+  }
+  bindDotDecimal("f_voo");
+  bindDotDecimal("e_voo");
+
   const h = normalizeStr(inicio?.value) || (lastStartedAt || "—");
   showMsg(`Voo encerrado - ${mins} min (início ${h})`);
 }
@@ -324,7 +347,7 @@ function buildEntryFromForm(){
   const num = normalizeStr(getFieldValue("f_num"));
   const missao = normalizeStr(getFieldValue("f_missao"));
   const codigo = normalizeStr(getFieldValue("f_codigo"));
-  const voo = normalizeStr(getFieldValue("f_voo"));
+  const voo = normalizeDecimalDots(getFieldValue("f_voo"));
   const inicio = normalizeStr(getFieldValue("f_inicio")); // automático
   const tempo = normalizeStr(getFieldValue("f_tempo"));   // automático
   const ua = normalizeStr(getFieldValue("f_ua"));
@@ -883,7 +906,7 @@ function saveEdit(){
     num: normalizeStr(document.getElementById("e_num").value),
     missao: normalizeStr(document.getElementById("e_missao").value),
     codigo: normalizeStr(document.getElementById("e_codigo")?.value),
-    voo: normalizeStr(document.getElementById("e_voo").value),
+    voo: normalizeDecimalDots(document.getElementById("e_voo").value),
     inicio: normalizeStr(document.getElementById("e_inicio").value),
     tempo: normalizeStr(document.getElementById("e_tempo").value),
     ua: normalizeStr(document.getElementById("e_ua").value),
@@ -936,6 +959,82 @@ function deleteEdit(){
 
   const btnEnd = document.getElementById("btnEnd");
   if (btnEnd) btnEnd.disabled = true;
+
+  // Força separador decimal com ponto no campo VOO (aceita também vírgula e converte)
+  function bindDotDecimal(id){
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('input', () => {
+      const v = String(el.value || '');
+      // troca vírgula por ponto e remove caracteres não permitidos
+      let out = v.replace(/,/g, '.').replace(/[^0-9.]/g, '');
+      // evita mais de um ponto
+      const parts = out.split('.');
+      if (parts.length > 2){
+        out = parts[0] + '.' + parts.slice(1).join('');
+      }
+      if (out !== v) el.value = out;
+    });
+  }
+  bindDotDecimal('f_voo');
+  bindDotDecimal('e_voo');
+
+  // Força separador decimal com ponto no campo VOO (aceita também vírgula e converte)
+  function bindDotDecimal(id){
+    const el = document.getElementById(id);
+    if (!el) return;
+    const fix = () => {
+      let v = String(el.value || '');
+      v = v.replace(/,/g, '.');
+      v = v.replace(/[^0-9.]/g, '');
+      // evita mais de um ponto
+      const parts = v.split('.');
+      if (parts.length > 2){
+        v = parts[0] + '.' + parts.slice(1).join('');
+      }
+      el.value = v;
+    };
+    el.addEventListener('input', fix);
+    el.addEventListener('blur', fix);
+  }
+  bindDotDecimal('f_voo');
+  bindDotDecimal('e_voo');
+
+  // Força separador decimal com ponto no campo VOO (aceita também vírgula e converte)
+  function bindDotDecimal(id){
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('input', () => {
+      const v = String(el.value || '');
+      // mantém só dígitos e separadores, troca vírgula por ponto
+      let out = v.replace(/,/g, '.').replace(/[^0-9.]/g, '');
+      // evita múltiplos pontos
+      const parts = out.split('.');
+      if (parts.length > 2){
+        out = parts[0] + '.' + parts.slice(1).join('');
+      }
+      if (out !== v) el.value = out;
+    });
+  }
+  bindDotDecimal('f_voo');
+  bindDotDecimal('e_voo');
+
+  // Força separador decimal com ponto no campo VOO (aceita também vírgula e converte)
+  const bindDotDecimal = (id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('input', () => {
+      let v = String(el.value || '');
+      v = v.replace(/,/g, '.');
+      v = v.replace(/[^0-9.]/g, '');
+      // evita mais de um ponto
+      const parts = v.split('.');
+      if (parts.length > 2) v = parts[0] + '.' + parts.slice(1).join('');
+      el.value = v;
+    });
+  };
+  bindDotDecimal('f_voo');
+  bindDotDecimal('e_voo');
 
   if ("serviceWorker" in navigator){
     navigator.serviceWorker.register("./service-worker.js").catch(() => {});
