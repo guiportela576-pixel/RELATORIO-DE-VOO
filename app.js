@@ -713,7 +713,10 @@ function renderHistory(){
     const batCount = batSet.size;
 
     const batText = (batCount === 1) ? "1 bateria" : `${batCount} baterias`;
-    dayTotalEl.textContent = `Total voado em ${day}: ${totalMin} min • ${batText} usadas`;
+    const flights = listDay.length;
+const vooText = (flights === 1) ? "1 voo" : `${flights} voos`;
+const label = (day === todayISO()) ? "Total voado hoje" : `Total voado em ${day}`;
+dayTotalEl.textContent = `${label} ${totalMin}min * ${vooText} * ${batText}`;
     dayTotalEl.style.display = "block";
   }
 
