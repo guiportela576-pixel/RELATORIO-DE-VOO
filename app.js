@@ -1,5 +1,5 @@
 // Relatório de Voo (PWA) - armazenamento local
-const APP_VERSION = "1.2.3";
+const APP_VERSION = "1.1.4";
 const VERSION_HISTORY = [
   "1.2.3 - Códigos de operação pré-carregados (não sobrescreve dados existentes)",
   "1.2.2 - Correção: botões/tabs voltaram a funcionar (erro JS) + VOO decimal no teclado",
@@ -696,14 +696,24 @@ function renderHistory(){
   ul.innerHTML = "";
   const list = getFilteredEntries();
 
-  // total de minutos do dia (somente o dia do filtro ou hoje)
+  // total do dia (minutos + baterias únicas)
   const dayTotalEl = document.getElementById("dayTotal");
   if (dayTotalEl){
     const day = normalizeStr(document.getElementById("filterDate")?.value) || todayISO();
-    const total = entries
-      .filter(e => e?.date === day)
-      .reduce((acc, e) => acc + (Number(e?.fields?.tempo) || 0), 0);
-    dayTotalEl.textContent = `Total voado em ${day}: ${total} min`;
+
+    const listDay = entries.filter(e => e?.date === day);
+
+    const totalMin = listDay.reduce((acc, e) => acc + (Number(e?.fields?.tempo) || 0), 0);
+
+    const batSet = new Set();
+    listDay.forEach(e => {
+      const b = normalizeStr(e?.fields?.nbat);
+      if (b) batSet.add(b);
+    });
+    const batCount = batSet.size;
+
+    const batText = (batCount === 1) ? "1 bateria" : `${batCount} baterias`;
+    dayTotalEl.textContent = `Total voado em ${day}: ${totalMin} min • ${batText} usadas`;
     dayTotalEl.style.display = "block";
   }
 
