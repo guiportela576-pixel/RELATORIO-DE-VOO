@@ -598,3 +598,6 @@ input[type="date"], input[type="time"]{
   text-overflow: ellipsis;
 }
 .picker-item:active{ transform: none; opacity: 0.85; }
+
+/* v28 - dayTotal maior */
+#dayTotal{font-size:15px !important; font-weight:900; line-height:1.35;}

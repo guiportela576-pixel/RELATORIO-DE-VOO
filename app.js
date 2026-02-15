@@ -312,7 +312,7 @@ function saveAll(){
 }
 
 function pad2(n){ return String(n).padStart(2, "0"); }
-function todayISO(){ return new Date().toISOString().slice(0,10); }
+function todayISO(){ return getTodayLocalISO(); }
 function nowHHMM(){
   const d = new Date();
   return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
@@ -321,6 +321,15 @@ function minutesBetween(startMs, endMs){
   const ms = Math.max(0, (endMs - startMs));
   return Math.max(1, Math.ceil(ms / 60000));
 }
+
+function getTodayLocalISO(){
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,"0");
+  const day = String(d.getDate()).padStart(2,"0");
+  return `${y}-${m}-${day}`;
+}
+
 function normalizeStr(s){
   return String(s || "").trim().replace(/\s+/g, " ");
 }
@@ -957,8 +966,8 @@ function renderHistory(){
     const batText = (batCount === 1) ? "1 bateria" : `${batCount} baterias`;
     const flights = listDay.length;
 const vooText = (flights === 1) ? "1 voo" : `${flights} voos`;
-const label = (day === todayISO()) ? "Total voado hoje" : `Total voado em ${day}`;
-dayTotalEl.textContent = `${label} ${totalMin}min * ${vooText} * ${batText}`;
+const label = "Total voado hoje";
+  dayTotalEl.textContent = `${label}: ${totalMin}min - ${vooText} - ${batText}`;
     dayTotalEl.style.display = "block";
   }
 
@@ -1328,3 +1337,14 @@ function deleteEdit(){
     navigator.serviceWorker.register("./service-worker.js").catch(() => {});
   }
 })();
+
+
+// v28 - recolher/mostrar lista de códigos (aba UA)
+function toggleCodeList(){
+  const list = document.getElementById("codeList");
+  const btn = document.getElementById("btnToggleCodes");
+  if (!list) return;
+  const isHidden = (list.style.display === "none");
+  list.style.display = isHidden ? "" : "none";
+  if (btn) btn.textContent = isHidden ? "Recolher lista" : "Mostrar lista";
+}
