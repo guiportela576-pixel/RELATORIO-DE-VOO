@@ -600,9 +600,17 @@ input[type="date"], input[type="time"]{
 .picker-item:active{ transform: none; opacity: 0.85; }
 
 /* v26 - day total bigger */
-#dayTotal{font-size:14px !important; font-weight:900; line-height:1.35;}
+#dayTotal{font-size:16px !important; font-weight:900; line-height:1.35;}
 
 
-/* Botão Excluir (Histórico) */
-button.danger{ border-color: rgba(255,80,80,.6); }
-button.danger:hover{ filter: brightness(1.05); }
+/* UA - fonte um pouco maior nos resultados */
+#tab-uas .cardline{font-size:16px;}
+#tab-uas .list li{padding:16px 0;}
+
+
+/* botão excluir */
+button.danger{
+  background: linear-gradient(180deg, rgba(239,68,68,0.30), rgba(239,68,68,0.14));
+  border-color: rgba(239,68,68,0.45);
+  color: #ffd5d5;
+}

@@ -8,10 +8,15 @@ const VERSION_HISTORY = [
   "1.0.0 - App inicial (novo + histórico + UA + cronômetro)"
 ];
 
+// URL do Apps Script (Planilha) para sincronização
+const SYNC_URL = "https://script.google.com/macros/s/AKfycbzvavI93pQGiyX5hWhOSdPfHgQcIQxLJQXrjkht4gw0ax_6ZtPn1NUsNs24pIcE9i32/exec";
+
+
 let entries = JSON.parse(localStorage.getItem("flightReports")) || [];
 let uas = JSON.parse(localStorage.getItem("uas")) || [];
 let defaultUA = localStorage.getItem("defaultUA") || "";
 let opCodes = JSON.parse(localStorage.getItem("opCodes")) || [];
+let codesCollapsed = localStorage.getItem("codesCollapsed") === "1";
 
 const DEFAULT_OP_CODES = [
   "1 - PLANEJAMENTO OPERACIONAL",
@@ -761,26 +766,20 @@ function copyOne(id){
 }
 
 function deleteOne(id){
-  const idx = entries.findIndex(x => x.id === id);
-  if (idx < 0) return;
+  const i = entries.findIndex(x => x.id === id);
+  if (i < 0) return;
+  if (!confirm("Excluir este voo do histórico?")) return;
 
-  const e = entries[idx];
-  const f = e?.fields || {};
-  const label = `${e?.date || "-"} - Nº ${f?.num || "-"}`;
-
-  const ok = confirm(`Excluir este voo?\n\n${label}\n\nEssa ação não pode ser desfeita.`);
-  if (!ok) return;
-
-  entries.splice(idx, 1);
+  entries.splice(i, 1);
   saveAll();
-
-  // Atualiza telas dependentes
   renderHistory();
-  updateAutoNum();
+  showMsg("Voo excluído!");
 
-  // Aviso rápido (se existir)
-  try { showMsg("Voo excluído."); } catch(e) {}
+  // dica rápida para sincronização
+  setSyncStatus("Voo excluído localmente. Clique em 'Enviar para planilha' para sincronizar.");
 }
+
+
 
 /* ===== UA ===== */
 function renderUAs(){
@@ -827,6 +826,183 @@ function renderUAs(){
 }
 
 
+
+/* ===== SINCRONIZAÇÃO (PLANILHA) ===== */
+function setSyncStatus(msg){
+  const el = document.getElementById("syncStatus");
+  if (el) el.textContent = msg || "";
+}
+
+function getAppState(){
+  return {
+    entries: Array.isArray(entries) ? entries : [],
+    uas: Array.isArray(uas) ? uas : [],
+    defaultUA: String(defaultUA || ""),
+    opCodes: Array.isArray(opCodes) ? opCodes : []
+  };
+}
+
+function applyAppState(state){
+  if (!state || typeof state !== "object") return;
+  entries = Array.isArray(state.entries) ? state.entries : [];
+  uas = Array.isArray(state.uas) ? state.uas : [];
+  defaultUA = String(state.defaultUA || "");
+  opCodes = Array.isArray(state.opCodes) ? state.opCodes : [];
+  saveAll();
+  ensureUASelects();
+  ensureCodeSelects();
+  updateAutoNum();
+  renderHistory();
+  renderUAs();
+}
+
+
+/* ===== SINCRONIZAÇÃO (PLANILHA) — sem CORS =====
+   - Pull: JSONP (script tag) => precisa do Apps Script retornar callback(...)
+   - Push: sendBeacon (não precisa ler resposta)
+*/
+
+function syncExtractStateFromResponse(resp){
+  if (!resp || !resp.ok) return null;
+
+  // Formato novo: { ok:true, payload:{...} }
+  if (resp.payload && typeof resp.payload === "object") return resp.payload;
+
+  // Formato alternativo: { ok:true, data:[[...],[...]] } (linhas da planilha)
+  if (Array.isArray(resp.data)){
+    // Procura de trás pra frente uma coluna 2 que pareça JSON do estado
+    for (let i = resp.data.length - 1; i >= 0; i--){
+      const row = resp.data[i];
+      if (!row || row.length < 2) continue;
+      const cell = row[1];
+      if (typeof cell !== "string") continue;
+      const s = cell.trim();
+      if (!s) continue;
+      // ignora cabeçalho comum
+      const upper = s.toUpperCase();
+      if (upper === "PAYLOAD" || upper === "DADOS" || upper === "DATA") continue;
+
+      try{
+        const parsed = JSON.parse(s);
+        if (parsed && typeof parsed === "object") return parsed;
+      }catch(e){}
+    }
+  }
+
+  return null;
+}
+
+function syncPullViaJSONP(timeoutMs = 20000){
+  return new Promise((resolve, reject) => {
+    const cbName = "__droneLogSyncCb_" + Math.random().toString(36).slice(2);
+    const url = SYNC_URL + "?callback=" + encodeURIComponent(cbName) + "&_=" + Date.now();
+
+    const s = document.createElement("script");
+    let done = false;
+
+    const cleanup = () => {
+      if (s && s.parentNode) s.parentNode.removeChild(s);
+      try{ delete window[cbName]; }catch(e){ window[cbName] = undefined; }
+    };
+
+    const t = setTimeout(() => {
+      if (done) return;
+      done = true;
+      cleanup();
+      reject(new Error("Timeout ao puxar da planilha."));
+    }, timeoutMs);
+
+    window[cbName] = (resp) => {
+      if (done) return;
+      done = true;
+      clearTimeout(t);
+      cleanup();
+      // resp pode vir em formatos diferentes (payload ou data)
+      const extracted = syncExtractStateFromResponse(resp);
+      resolve(extracted);
+};
+
+    s.onerror = () => {
+      if (done) return;
+      done = true;
+      clearTimeout(t);
+      cleanup();
+      reject(new Error("Falha ao carregar JSONP."));
+    };
+
+    s.src = url;
+    document.head.appendChild(s);
+  });
+}
+
+function syncPushViaBeacon(){
+  return new Promise((resolve) => {
+    const dataStr = JSON.stringify(getAppState());
+    // sendBeacon: melhor para cross-domain sem CORS (não lê resposta)
+    if (navigator && typeof navigator.sendBeacon === "function"){
+      const blob = new Blob([dataStr], { type: "text/plain;charset=UTF-8" });
+      const ok = navigator.sendBeacon(SYNC_URL, blob);
+      resolve(!!ok);
+      return;
+    }
+
+    // Fallback: fetch no-cors (não dá pra ler resposta, mas envia)
+    fetch(SYNC_URL, { method:"POST", mode:"no-cors", body:dataStr })
+      .then(() => resolve(true))
+      .catch(() => resolve(false));
+  });
+}
+async function syncPull(){
+  try{
+    setSyncStatus("Atualizando da planilha...");
+    const payload = await syncPullViaJSONP();
+    if (!payload){
+      setSyncStatus("Planilha vazia (sem dados ainda).");
+      return;
+    }
+    applyAppState(payload);
+    setSyncStatus("Dados atualizados da planilha ✅");
+    showMsg("Sincronizado!");
+  }catch(err){
+    console.error(err);
+    setSyncStatus("Erro ao atualizar: " + (err && err.message ? err.message : "falha desconhecida") + ".");
+    showMsg("Falha ao sincronizar.");
+  }
+}
+
+async function syncPush(){
+  try{
+    setSyncStatus("Enviando para a planilha...");
+    const ok = await syncPushViaBeacon();
+    if (!ok) throw new Error("Falha ao enviar (beacon).");
+    setSyncStatus("Enviado para a planilha ✅");
+    showMsg("Enviado!");
+  }catch(err){
+    console.error(err);
+    setSyncStatus("Erro ao enviar: " + (err && err.message ? err.message : "falha desconhecida") + ".");
+    showMsg("Falha ao enviar.");
+  }
+}
+
+/* ===== RECOLHER LISTA DE CÓDIGOS ===== */
+function syncCodesToggleUI(){
+  const ul = document.getElementById("codeList");
+  const btn = document.getElementById("btnToggleCodes");
+  if (!ul || !btn) return;
+  if (codesCollapsed){
+    ul.style.display = "none";
+    btn.textContent = "Mostrar códigos";
+  }else{
+    ul.style.display = "block";
+    btn.textContent = "Recolher códigos";
+  }
+}
+function toggleCodes(){
+  codesCollapsed = !codesCollapsed;
+  localStorage.setItem("codesCollapsed", codesCollapsed ? "1" : "0");
+  syncCodesToggleUI();
+}
+
 /* ===== CÓDIGOS DE OPERAÇÃO ===== */
 function renderCodes(){
   const ul = document.getElementById("codeList");
@@ -852,6 +1028,7 @@ function renderCodes(){
     `;
     ul.appendChild(li);
   });
+  syncCodesToggleUI();
 }
 
 function addCode(){
