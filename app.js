@@ -1,6 +1,7 @@
 // Relatório de Voo (PWA) - armazenamento local
-const APP_VERSION = "1.1.4";
+const APP_VERSION = "1.1.5";
 const VERSION_HISTORY = [
+  "1.1.5 - Envio automático para planilha ao salvar voo",
   "1.2.3 - Códigos de operação pré-carregados (não sobrescreve dados existentes)",
   "1.2.2 - Correção: botões/tabs voltaram a funcionar (erro JS) + VOO decimal no teclado",
   "1.2.0 - Códigos de operação + total de minutos do dia + export PDF corrigido (Android/iOS) + teclado numérico (Voo/Cargas)",
@@ -484,6 +485,17 @@ function saveEntry(){
   ensureUASelects();
   clearForm();
   showMsg("Registro salvo!");
+
+  // Envio automático para a planilha (não bloqueia o salvamento)
+  try{
+    syncPushViaBeacon().then((ok) => {
+      if (ok) setSyncStatus("Enviado automaticamente para a planilha ✅");
+      else setSyncStatus("Falha no envio automático. Use 'Enviar para planilha'.");
+    });
+  }catch(e){
+    setSyncStatus("Falha no envio automático. Use 'Enviar para planilha'.");
+  }
+
 }
 
 function clearForm(){
@@ -752,7 +764,6 @@ dayTotalEl.textContent = `${label}: ${totalMin}min - ${vooText} - ${batText}`;
       <div class="actions">
         <button type="button" class="ghost" onclick="openEditModal('${e.id}')">Editar</button>
         <button type="button" onclick="copyOne('${e.id}')">Copiar</button>
-        <button type="button" class="danger" onclick="deleteOne('${e.id}')">Excluir</button>
       </div>
     `;
     ul.appendChild(li);
@@ -764,22 +775,6 @@ function copyOne(id){
   if (!e) return;
   copyText(formatForCopy(e));
 }
-
-function deleteOne(id){
-  const i = entries.findIndex(x => x.id === id);
-  if (i < 0) return;
-  if (!confirm("Excluir este voo do histórico?")) return;
-
-  entries.splice(i, 1);
-  saveAll();
-  renderHistory();
-  showMsg("Voo excluído!");
-
-  // dica rápida para sincronização
-  setSyncStatus("Voo excluído localmente. Clique em 'Enviar para planilha' para sincronizar.");
-}
-
-
 
 /* ===== UA ===== */
 function renderUAs(){
