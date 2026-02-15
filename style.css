@@ -600,16 +600,9 @@ input[type="date"], input[type="time"]{
 .picker-item:active{ transform: none; opacity: 0.85; }
 
 /* v26 - day total bigger */
-#dayTotal{font-size:14px !important; font-weight:900; line-height:1.35;}
+#dayTotal{font-size:16px !important; font-weight:900; line-height:1.35;}
 
 
-/* ===== Pequenos ajustes solicitados ===== */
-/* Aba UA: aumenta um pouco a fonte dos resultados (listas) */
-#tab-uas .list .cardline{
-  font-size: 16px;
-}
-
-/* Texto "Total voado hoje..." um pouco maior */
-#dayTotal{
-  font-size: 14px;
-}
+/* UA - fonte um pouco maior nos resultados */
+#tab-uas .cardline{font-size:16px;}
+#tab-uas .list li{padding:16px 0;}

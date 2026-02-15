@@ -149,6 +149,13 @@
         <h2>UA (Drone)</h2>
         <p class="hint">Cadastre aqui suas UAs para não precisar digitar toda vez.</p>
 
+        <div class="row" style="margin-top:8px;">
+          <button type="button" class="ghost" onclick="syncPull()">Atualizar da planilha</button>
+          <button type="button" onclick="syncPush()">Enviar para planilha</button>
+        </div>
+        <div id="syncStatus" class="hint" style="margin-top:6px;"></div>
+
+
         <div class="grid">
           <input type="text" id="uaNew" class="span-2" />
         </div>
@@ -167,7 +174,7 @@
         </div>
         <div class="row" style="margin-top:8px;">
           <button type="button" onclick="addCode()">Adicionar código</button>
-          <button id="btnToggleCodes" type="button" class="ghost" onclick="toggleCodes()">Recolher códigos</button>
+          <button type="button" class="ghost" id="btnToggleCodes" onclick="toggleCodes()">Recolher códigos</button>
         </div>
         <ul id="codeList" class="list" style="margin-top:10px;"></ul>
 

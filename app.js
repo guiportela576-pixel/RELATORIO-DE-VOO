@@ -12,6 +12,7 @@ let entries = JSON.parse(localStorage.getItem("flightReports")) || [];
 let uas = JSON.parse(localStorage.getItem("uas")) || [];
 let defaultUA = localStorage.getItem("defaultUA") || "";
 let opCodes = JSON.parse(localStorage.getItem("opCodes")) || [];
+let codesCollapsed = localStorage.getItem("codesCollapsed") === "1";
 
 const DEFAULT_OP_CODES = [
   "1 - PLANEJAMENTO OPERACIONAL",
@@ -57,28 +58,6 @@ const DEFAULT_OP_CODES = [
 if (!Array.isArray(opCodes) || opCodes.length === 0){
   opCodes = [...DEFAULT_OP_CODES];
   localStorage.setItem("opCodes", JSON.stringify(opCodes));
-}
-
-// UI: recolher/mostrar lista de códigos (aba UA)
-let codesCollapsed = false;
-try{
-  codesCollapsed = JSON.parse(localStorage.getItem("codesCollapsed") || "false") === true;
-}catch{ codesCollapsed = false; }
-
-function syncCodesToggleUI(){
-  const ul = document.getElementById("codeList");
-  const btn = document.getElementById("btnToggleCodes");
-  if (ul) ul.style.display = codesCollapsed ? "none" : "block";
-  if (btn){
-    btn.textContent = codesCollapsed ? "Mostrar códigos" : "Recolher códigos";
-    btn.setAttribute("aria-expanded", String(!codesCollapsed));
-  }
-}
-
-function toggleCodes(){
-  codesCollapsed = !codesCollapsed;
-  localStorage.setItem("codesCollapsed", JSON.stringify(codesCollapsed));
-  syncCodesToggleUI();
 }
 
 let runStartMs = null; // cronômetro
@@ -296,7 +275,6 @@ function renderCodePicker(){
     const li = document.createElement("li");
     li.textContent = "Nenhum código cadastrado ainda (cadastre na aba UA).";
     ul.appendChild(li);
-    syncCodesToggleUI();
     return;
   }
 
@@ -817,7 +795,6 @@ function renderUAs(){
   if (vh){
     vh.innerHTML = "";
     renderCodes();
-    syncCodesToggleUI();
 
     VERSION_HISTORY.forEach(item => {
       const li = document.createElement("li");
@@ -827,6 +804,109 @@ function renderUAs(){
   }
 }
 
+
+
+/* ===== SINCRONIZAÇÃO (PLANILHA) ===== */
+function setSyncStatus(msg){
+  const el = document.getElementById("syncStatus");
+  if (el) el.textContent = msg || "";
+}
+
+function getAppState(){
+  return {
+    entries: Array.isArray(entries) ? entries : [],
+    uas: Array.isArray(uas) ? uas : [],
+    defaultUA: String(defaultUA || ""),
+    opCodes: Array.isArray(opCodes) ? opCodes : []
+  };
+}
+
+function applyAppState(state){
+  if (!state || typeof state !== "object") return;
+  entries = Array.isArray(state.entries) ? state.entries : [];
+  uas = Array.isArray(state.uas) ? state.uas : [];
+  defaultUA = String(state.defaultUA || "");
+  opCodes = Array.isArray(state.opCodes) ? state.opCodes : [];
+  saveAll();
+  ensureUASelects();
+  ensureCodeSelects();
+  updateAutoNum();
+  renderHistory();
+  renderUAs();
+}
+
+async function syncPull(){
+  try{
+    setSyncStatus("Atualizando da planilha...");
+    const res = await fetch(SYNC_URL, { method:"GET", cache:"no-store" });
+    if (!res.ok) throw new Error("Falha ao buscar dados.");
+    const values = await res.json(); // retorna linhas da planilha
+    if (!Array.isArray(values) || values.length === 0){
+      setSyncStatus("Planilha vazia (sem dados ainda).");
+      return;
+    }
+    // pega a última linha preenchida
+    const last = values[values.length - 1];
+    let payload = null;
+    // formato esperado: [timestamp, "{...json...}"]
+    if (Array.isArray(last) && last.length >= 2 && typeof last[1] === "string"){
+      try{ payload = JSON.parse(last[1]); }catch(e){ payload = null; }
+    }
+    // fallback: se vier direto um objeto
+    if (!payload && typeof last === "string"){
+      try{ payload = JSON.parse(last); }catch(e){ payload = null; }
+    }
+    if (!payload){
+      setSyncStatus("Não consegui ler os dados da última linha da planilha.");
+      return;
+    }
+    applyAppState(payload);
+    setSyncStatus("Dados atualizados da planilha ✅");
+    showMsg("Sincronizado!");
+  }catch(err){
+    console.error(err);
+    setSyncStatus("Erro ao atualizar. Se não funcionar, me avise que ajusto o script da planilha.");
+    showMsg("Falha ao sincronizar.");
+  }
+}
+
+async function syncPush(){
+  try{
+    setSyncStatus("Enviando para a planilha...");
+    const body = JSON.stringify(getAppState());
+    const res = await fetch(SYNC_URL, {
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body
+    });
+    // pode voltar 200 ou 302; só considerar ok se não der erro
+    setSyncStatus("Enviado para a planilha ✅ (a última gravação substitui para quem puxar depois)");
+    showMsg("Enviado!");
+  }catch(err){
+    console.error(err);
+    setSyncStatus("Erro ao enviar. Se não funcionar, me avise que ajusto o script da planilha.");
+    showMsg("Falha ao enviar.");
+  }
+}
+
+/* ===== RECOLHER LISTA DE CÓDIGOS ===== */
+function syncCodesToggleUI(){
+  const ul = document.getElementById("codeList");
+  const btn = document.getElementById("btnToggleCodes");
+  if (!ul || !btn) return;
+  if (codesCollapsed){
+    ul.style.display = "none";
+    btn.textContent = "Mostrar códigos";
+  }else{
+    ul.style.display = "block";
+    btn.textContent = "Recolher códigos";
+  }
+}
+function toggleCodes(){
+  codesCollapsed = !codesCollapsed;
+  localStorage.setItem("codesCollapsed", codesCollapsed ? "1" : "0");
+  syncCodesToggleUI();
+}
 
 /* ===== CÓDIGOS DE OPERAÇÃO ===== */
 function renderCodes(){
@@ -853,7 +933,6 @@ function renderCodes(){
     `;
     ul.appendChild(li);
   });
-
   syncCodesToggleUI();
 }
 
