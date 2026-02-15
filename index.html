@@ -5,7 +5,7 @@
   <title>📝 Relatório de Voo</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <link rel="manifest" href="manifest.json" />
-  <link rel="stylesheet" href="style.css?v=35" />
+  <link rel="stylesheet" href="style.css?v=26" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 </head>
@@ -167,19 +167,8 @@
         </div>
         <div class="row" style="margin-top:8px;">
           <button type="button" onclick="addCode()">Adicionar código</button>
-          <button type="button" class="ghost" onclick="toggleCodeList()" id="btnToggleCodes">Recolher lista</button>
         </div>
         <ul id="codeList" class="list" style="margin-top:10px;"></ul>
-        <div class="divider"></div>
-
-        <h3>Sincronização (Google)</h3>
-        <p class="hint">Use a mesma conta Google nos dois celulares para compartilhar os registros. Ao salvar, o app sincroniza automaticamente.</p>
-        <div class="row" style="margin-top:8px;">
-          <button type="button" id="btnGoogleConnect" onclick="connectGoogle()">Conectar Google</button>
-          <button type="button" class="ghost" onclick="syncNow(true)">Sincronizar agora</button>
-        </div>
-        <div id="googleStatus" class="hint" style="margin-top:8px;">Google: não conectado</div>
-
 
         <div class="divider"></div>
 
@@ -255,9 +244,7 @@
     <footer class="tabs-footer" aria-hidden="true"></footer>
   </main>
 
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
-
-  <script src="app.js?v=35"></script>
+  <script src="app.js?v=26"></script>
 
   <!-- ===== Code Picker (Tela cheia) ===== -->
   <div id="codePickerModal" class="modal-overlay" style="display:none;" onclick="codePickerBackdrop(event)">
@@ -268,16 +255,6 @@
       </div>
       <div class="modal-sub">Toque em um código para preencher no formulário.</div>
       <ul id="codePickerList" class="list" style="margin-top:10px;"></ul>
-    </div>
-  </div>
-
-  <div id="appVersionBadge" aria-label="Versão do app">v35</div>
-
-  <div id="updateBanner" role="status" aria-live="polite">
-    <div class="ubox">
-      <div class="utitle">Atualização disponível</div>
-      <div class="utext">Toque em atualizar para usar a versão mais recente.</div>
-      <button type="button" id="btnUpdateNow">Atualizar agora</button>
     </div>
   </div>
 

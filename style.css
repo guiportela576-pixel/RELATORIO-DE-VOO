@@ -599,46 +599,5 @@ input[type="date"], input[type="time"]{
 }
 .picker-item:active{ transform: none; opacity: 0.85; }
 
-/* v28 - dayTotal maior */
-#dayTotal{font-size:15px !important; font-weight:900; line-height:1.35;}
-
-
-/* v33 - selo de versão */
-#appVersionBadge{
-  position: fixed;
-  right: 10px;
-  bottom: 10px;
-  z-index: 9999;
-  font-size: 11px;
-  font-weight: 800;
-  padding: 4px 8px;
-  border-radius: 10px;
-  background: rgba(0,0,0,0.08);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  pointer-events: none;
-  user-select: none;
-}
-
-
-/* v35 - banner de atualização (anti-cache velho) */
-#updateBanner{
-  position: fixed;
-  left: 0; right: 0; bottom: 0;
-  padding: 10px;
-  z-index: 9998;
-  display: none;
-}
-#updateBanner .ubox{
-  max-width: 680px;
-  margin: 0 auto;
-  border-radius: 14px;
-  padding: 12px 14px;
-  background: rgba(0,0,0,0.78);
-  color: #fff;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-}
-#updateBanner .utitle{ font-weight: 900; font-size: 14px; margin-bottom: 4px; }
-#updateBanner .utext{ font-size: 12px; opacity: .9; margin-bottom: 10px; }
-#btnUpdateNow{ width: 100%; border-radius: 12px; padding: 10px 12px; font-weight: 900; }
+/* v26 - day total bigger */
+#dayTotal{font-size:14px !important; font-weight:900; line-height:1.35;}
