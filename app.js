@@ -8,6 +8,10 @@ const VERSION_HISTORY = [
   "1.0.0 - App inicial (novo + histórico + UA + cronômetro)"
 ];
 
+// URL do Apps Script (Planilha) para sincronização
+const SYNC_URL = "https://script.google.com/macros/s/AKfycbzweP8a7LOy6ZEvfxuWWvG7f1bOFiIzvOCFncYZYJ9s_K5ICshy7ta1JVuS3RWbOJLm/exec";
+
+
 let entries = JSON.parse(localStorage.getItem("flightReports")) || [];
 let uas = JSON.parse(localStorage.getItem("uas")) || [];
 let defaultUA = localStorage.getItem("defaultUA") || "";
@@ -835,29 +839,80 @@ function applyAppState(state){
   renderUAs();
 }
 
+
+/* ===== SINCRONIZAÇÃO (PLANILHA) — sem CORS =====
+   - Pull: JSONP (script tag) => precisa do Apps Script retornar callback(...)
+   - Push: sendBeacon (não precisa ler resposta)
+*/
+function syncPullViaJSONP(timeoutMs = 12000){
+  return new Promise((resolve, reject) => {
+    const cbName = "__droneLogSyncCb_" + Math.random().toString(36).slice(2);
+    const url = SYNC_URL + "?callback=" + encodeURIComponent(cbName) + "&_=" + Date.now();
+
+    const s = document.createElement("script");
+    let done = false;
+
+    const cleanup = () => {
+      if (s && s.parentNode) s.parentNode.removeChild(s);
+      try{ delete window[cbName]; }catch(e){ window[cbName] = undefined; }
+    };
+
+    const t = setTimeout(() => {
+      if (done) return;
+      done = true;
+      cleanup();
+      reject(new Error("Timeout ao puxar da planilha."));
+    }, timeoutMs);
+
+    window[cbName] = (resp) => {
+      if (done) return;
+      done = true;
+      clearTimeout(t);
+      cleanup();
+      // resp esperado: { ok:true, payload:{...} }
+      if (resp && resp.ok && resp.payload){
+        resolve(resp.payload);
+      }else{
+        resolve(null);
+      }
+    };
+
+    s.onerror = () => {
+      if (done) return;
+      done = true;
+      clearTimeout(t);
+      cleanup();
+      reject(new Error("Falha ao carregar JSONP."));
+    };
+
+    s.src = url;
+    document.head.appendChild(s);
+  });
+}
+
+function syncPushViaBeacon(){
+  return new Promise((resolve) => {
+    const dataStr = JSON.stringify(getAppState());
+    // sendBeacon: melhor para cross-domain sem CORS (não lê resposta)
+    if (navigator && typeof navigator.sendBeacon === "function"){
+      const blob = new Blob([dataStr], { type: "text/plain;charset=UTF-8" });
+      const ok = navigator.sendBeacon(SYNC_URL, blob);
+      resolve(!!ok);
+      return;
+    }
+
+    // Fallback: fetch no-cors (não dá pra ler resposta, mas envia)
+    fetch(SYNC_URL, { method:"POST", mode:"no-cors", body:dataStr })
+      .then(() => resolve(true))
+      .catch(() => resolve(false));
+  });
+}
 async function syncPull(){
   try{
     setSyncStatus("Atualizando da planilha...");
-    const res = await fetch(SYNC_URL, { method:"GET", cache:"no-store" });
-    if (!res.ok) throw new Error("Falha ao buscar dados.");
-    const values = await res.json(); // retorna linhas da planilha
-    if (!Array.isArray(values) || values.length === 0){
-      setSyncStatus("Planilha vazia (sem dados ainda).");
-      return;
-    }
-    // pega a última linha preenchida
-    const last = values[values.length - 1];
-    let payload = null;
-    // formato esperado: [timestamp, "{...json...}"]
-    if (Array.isArray(last) && last.length >= 2 && typeof last[1] === "string"){
-      try{ payload = JSON.parse(last[1]); }catch(e){ payload = null; }
-    }
-    // fallback: se vier direto um objeto
-    if (!payload && typeof last === "string"){
-      try{ payload = JSON.parse(last); }catch(e){ payload = null; }
-    }
+    const payload = await syncPullViaJSONP();
     if (!payload){
-      setSyncStatus("Não consegui ler os dados da última linha da planilha.");
+      setSyncStatus("Planilha vazia (sem dados ainda).");
       return;
     }
     applyAppState(payload);
@@ -865,7 +920,7 @@ async function syncPull(){
     showMsg("Sincronizado!");
   }catch(err){
     console.error(err);
-    setSyncStatus("Erro ao atualizar. Se não funcionar, me avise que ajusto o script da planilha.");
+    setSyncStatus("Erro ao atualizar. Vou ajustar para funcionar com a planilha.");
     showMsg("Falha ao sincronizar.");
   }
 }
@@ -873,18 +928,13 @@ async function syncPull(){
 async function syncPush(){
   try{
     setSyncStatus("Enviando para a planilha...");
-    const body = JSON.stringify(getAppState());
-    const res = await fetch(SYNC_URL, {
-      method:"POST",
-      headers:{ "Content-Type":"application/json" },
-      body
-    });
-    // pode voltar 200 ou 302; só considerar ok se não der erro
-    setSyncStatus("Enviado para a planilha ✅ (a última gravação substitui para quem puxar depois)");
+    const ok = await syncPushViaBeacon();
+    if (!ok) throw new Error("Falha ao enviar (beacon).");
+    setSyncStatus("Enviado para a planilha ✅");
     showMsg("Enviado!");
   }catch(err){
     console.error(err);
-    setSyncStatus("Erro ao enviar. Se não funcionar, me avise que ajusto o script da planilha.");
+    setSyncStatus("Erro ao enviar. Vou ajustar para funcionar com a planilha.");
     showMsg("Falha ao enviar.");
   }
 }
