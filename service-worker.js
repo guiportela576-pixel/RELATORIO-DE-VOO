@@ -1,4 +1,4 @@
-const CACHE_NAME = "relatorio-voo-ios-v28";
+const CACHE_NAME = "relatorio-voo-ios-v35";
 
 self.addEventListener("install", (event) => {
   self.skipWaiting();
@@ -7,8 +7,8 @@ self.addEventListener("install", (event) => {
       cache.addAll([
         "./",
         "./index.html",
-        "./style.css?v=28",
-        "./app.js?v=28",
+        "./style.css?v=35",
+        "./app.js?v=35",
         "./manifest.json",
         "./icon.png"
       ])
@@ -54,4 +54,11 @@ self.addEventListener("fetch", (event) => {
       return cached || fetchPromise;
     })
   );
+});
+
+
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
 });

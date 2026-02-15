@@ -1,5 +1,5 @@
 // Relatório de Voo (PWA) - armazenamento local
-const APP_VERSION = "1.3.0";
+const APP_VERSION = "1.6.2";
 const VERSION_HISTORY = [
   "1.3.0 - Sincronização automática no Google Drive (login Google no app)",
   "1.2.3 - Códigos de operação pré-carregados (não sobrescreve dados existentes)",
@@ -82,6 +82,15 @@ function setGoogleStatus(text){
   if (el) el.textContent = text;
 }
 
+
+
+function setGoogleButtonEnabled(enabled){
+  const btn = document.getElementById("btnGoogleConnect");
+  if (!btn) return;
+  btn.disabled = !enabled;
+  btn.style.opacity = enabled ? "1" : "0.6";
+}
+
 function initGoogleAuth(){
   try{
     if (!window.google || !google.accounts || !google.accounts.oauth2){
@@ -96,6 +105,7 @@ function initGoogleAuth(){
           googleAccessToken = resp.access_token;
           localStorage.setItem("googleAccessToken", googleAccessToken);
           setGoogleStatus("Google: conectado ✅");
+              startAutoSyncWatcher();
           if (syncQueued && !syncInProgress){
             syncQueued = false;
             syncNow(false);
@@ -109,6 +119,7 @@ function initGoogleAuth(){
     if (saved){
       googleAccessToken = saved;
       setGoogleStatus("Google: conectado ✅");
+              startAutoSyncWatcher();
     }else{
       setGoogleStatus("Google: não conectado");
     }
@@ -274,6 +285,7 @@ async function syncNow(interactive){
       fileId = await createSyncFile(buildSyncPayload());
       localStorage.setItem("driveSyncFileId", fileId);
       setGoogleStatus("Google: sincronizado ✅");
+        try{ lastRemoteModifiedTime = await getRemoteModifiedTime(); }catch(e){}
       return;
     }
 
@@ -285,6 +297,7 @@ async function syncNow(interactive){
     }catch(e){
       await uploadSyncFile(fileId, buildSyncPayload());
       setGoogleStatus("Google: sincronizado ✅");
+        try{ lastRemoteModifiedTime = await getRemoteModifiedTime(); }catch(e){}
       return;
     }
 
@@ -294,6 +307,7 @@ async function syncNow(interactive){
 
     await uploadSyncFile(fileId, buildSyncPayload());
     setGoogleStatus("Google: sincronizado ✅");
+        try{ lastRemoteModifiedTime = await getRemoteModifiedTime(); }catch(e){}
   }catch(e){
     setGoogleStatus("Google: erro de sync (salvo local)");
   }finally{
@@ -1255,7 +1269,60 @@ function deleteEdit(){
 }
 
 /* ===== PWA: registrar SW ===== */
+
+
+// v35 - modo "travado profissional": sempre puxa a versão mais recente
+function showUpdateBanner(reg){
+  const banner = document.getElementById("updateBanner");
+  const btn = document.getElementById("btnUpdateNow");
+  if (!banner || !btn) return;
+  banner.style.display = "block";
+  btn.onclick = () => {
+    try{
+      if (reg && reg.waiting){
+        reg.waiting.postMessage({ type: "SKIP_WAITING" });
+      }
+    }catch(e){}
+    // pequeno delay para o SW assumir controle
+    setTimeout(() => location.reload(), 350);
+  };
+}
+
+function setupAutoUpdate(){
+  if (!("serviceWorker" in navigator)) return;
+
+  navigator.serviceWorker.register("./service-worker.js").then((reg) => {
+    // checa atualizações periodicamente (anti-cache)
+    const tick = () => { try{ reg.update(); }catch(e){} };
+    tick();
+    setInterval(() => { if (navigator.onLine) tick(); }, 60000);
+
+    // se já tem uma versão esperando, mostra banner
+    if (reg.waiting) showUpdateBanner(reg);
+
+    reg.addEventListener("updatefound", () => {
+      const nw = reg.installing;
+      if (!nw) return;
+      nw.addEventListener("statechange", () => {
+        if (nw.state === "installed") {
+          // se já existe controlador, é atualização
+          if (navigator.serviceWorker.controller) {
+            showUpdateBanner(reg);
+          }
+        }
+      });
+    });
+  }).catch(() => {});
+
+  // quando o novo SW assumir, recarrega pra garantir versão correta
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    location.reload();
+  });
+}
+
 (function init(){
+  setupAutoUpdate();
+  startAutoSyncWatcher();
   initGoogleAuth();
   ensureUASelects();
   ensureCodeSelects();
@@ -1347,4 +1414,80 @@ function toggleCodeList(){
   const isHidden = (list.style.display === "none");
   list.style.display = isHidden ? "" : "none";
   if (btn) btn.textContent = isHidden ? "Recolher lista" : "Mostrar lista";
+}
+
+
+// v33 - auto sync watcher (modo operação)
+// - 3s quando o app está visível
+// - 12s quando está em segundo plano
+// - sync imediato ao voltar (focus/visibility/online)
+let autoSyncTimer = null;
+let lastRemoteModifiedTime = "";
+let autoSyncIntervalMs = 8000;
+let autoSyncFailCount = 0;
+
+function computeAutoSyncInterval(){
+  const hidden = document.hidden;
+  autoSyncIntervalMs = hidden ? 12000 : 3000;
+  if (autoSyncFailCount >= 3) autoSyncIntervalMs = Math.max(autoSyncIntervalMs, 15000);
+}
+
+async function getRemoteModifiedTime(){
+  if(!googleAccessToken) return "";
+  const fileId = localStorage.getItem("driveSyncFileId") || "";
+  if(!fileId) return "";
+  try{
+    const res = await driveFetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?fields=modifiedTime`);
+    if(!res.ok) return "";
+    const data = await res.json();
+    return String(data.modifiedTime || "");
+  }catch(e){ return ""; }
+}
+
+async function autoSyncTick(){
+  if(syncInProgress) return;
+  if(!googleAccessToken) return;
+  try{
+    const mt = await getRemoteModifiedTime();
+    if(!mt) return;
+    if(!lastRemoteModifiedTime){ lastRemoteModifiedTime = mt; return; }
+    if(mt !== lastRemoteModifiedTime){
+      lastRemoteModifiedTime = mt;
+      await syncNow(false);
+      try{ applyFilters(); }catch(e){}
+    }
+    autoSyncFailCount = 0;
+  }catch(e){
+    autoSyncFailCount++;
+  }finally{
+    restartAutoSyncTimer();
+  }
+}
+
+function restartAutoSyncTimer(){
+  computeAutoSyncInterval();
+  if(autoSyncTimer) clearTimeout(autoSyncTimer);
+  autoSyncTimer = setTimeout(autoSyncTick, autoSyncIntervalMs);
+}
+
+function startAutoSyncWatcher(){
+  if(!window.__autoSyncListenersInstalled){
+    window.__autoSyncListenersInstalled = true;
+
+    document.addEventListener("visibilitychange", () => {
+      restartAutoSyncTimer();
+      if(!document.hidden) setTimeout(autoSyncTick, 250);
+    });
+
+    window.addEventListener("focus", () => {
+      restartAutoSyncTimer();
+      setTimeout(autoSyncTick, 250);
+    });
+
+    window.addEventListener("online", () => {
+      restartAutoSyncTimer();
+      setTimeout(autoSyncTick, 250);
+    });
+  }
+  restartAutoSyncTimer();
 }
