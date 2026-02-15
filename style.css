@@ -598,6 +598,3 @@ input[type="date"], input[type="time"]{
   text-overflow: ellipsis;
 }
 .picker-item:active{ transform: none; opacity: 0.85; }
-
-/* v26 - day total bigger */
-#dayTotal{font-size:14px !important; font-weight:900; line-height:1.35;}
