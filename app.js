@@ -13,6 +13,189 @@ let uas = JSON.parse(localStorage.getItem("uas")) || [];
 let defaultUA = localStorage.getItem("defaultUA") || "";
 let opCodes = JSON.parse(localStorage.getItem("opCodes")) || [];
 
+/* ===== Histórico compartilhado (Firebase Firestore) =====
+   Objetivo: dois aparelhos verem o mesmo histórico (sem mudar layout/fluxo do app).
+   Como funciona:
+   - O app salva normalmente no localStorage.
+   - Em paralelo, envia/atualiza/exclui no Firestore.
+   - Também fica "ouvindo" mudanças no Firestore e atualiza o histórico local.
+*/
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyADUzlc5OmSY2NouCxg4SO6sxJ8RvP5Y-M",
+  authDomain: "relatorio-de-voo-470bb.firebaseapp.com",
+  projectId: "relatorio-de-voo-470bb",
+  storageBucket: "relatorio-de-voo-470bb.firebasestorage.app",
+  messagingSenderId: "257968341198",
+  appId: "1:257968341198:web:7bd94d8b527491e4b3509f"
+};
+
+// Coleção "fixa" compartilhada entre você e sua parceira.
+// Se você quiser "travar" com uma senha/código do casal, dá pra evoluir depois.
+const TEAM_DOC_ID = "default";
+
+let _fbReady = false;
+let _db = null;
+let _unsubFlights = null;
+
+function firebaseInit(){
+  try{
+    if (!window.firebase) return false;
+    // evita inicializar duas vezes
+    if (!firebase.apps || !firebase.apps.length){
+      firebase.initializeApp(FIREBASE_CONFIG);
+    }
+    _db = firebase.firestore();
+    _fbReady = true;
+    return true;
+  }catch(e){
+    console.warn("Firebase não iniciou:", e);
+    _fbReady = false;
+    _db = null;
+    return false;
+  }
+}
+
+function flightsCol(){
+  if (!_fbReady || !_db) return null;
+  return _db.collection("teams").doc(TEAM_DOC_ID).collection("flights");
+}
+
+function entryEffectiveUpdatedAt(e){
+  // usa updatedAt se existir; senão createdAt
+  return String(e?.updatedAt || e?.createdAt || "");
+}
+
+function touchEntryUpdatedAt(e){
+  e.updatedAt = new Date().toISOString();
+  return e;
+}
+
+function mergeCloudEntryIntoLocal(cloud){
+  if (!cloud || !cloud.id) return false;
+  // se veio marcado como deletado, remove local
+  if (cloud.deleted){
+    const idx = entries.findIndex(x => x?.id === cloud.id);
+    if (idx >= 0){
+      entries.splice(idx, 1);
+      return true;
+    }
+    return false;
+  }
+
+  const idx = entries.findIndex(x => x?.id === cloud.id);
+  if (idx < 0){
+    entries.push(cloud);
+    return true;
+  }
+
+  const local = entries[idx];
+  const localTs = entryEffectiveUpdatedAt(local);
+  const cloudTs = entryEffectiveUpdatedAt(cloud);
+
+  // se a nuvem é mais nova, substitui
+  if (cloudTs && (!localTs || cloudTs > localTs)){
+    entries[idx] = cloud;
+    return true;
+  }
+  return false;
+}
+
+async function cloudUpsertEntry(entry){
+  try{
+    const col = flightsCol();
+    if (!col) return;
+    const payload = {
+      ...entry,
+      deleted: false,
+      updatedAt: entryEffectiveUpdatedAt(entry) || new Date().toISOString()
+    };
+    await col.doc(entry.id).set(payload, { merge: true });
+  }catch(e){
+    console.warn("Falha ao enviar para a nuvem:", e);
+  }
+}
+
+async function cloudDeleteEntry(entryId){
+  try{
+    const col = flightsCol();
+    if (!col) return;
+    await col.doc(entryId).set({ id: entryId, deleted: true, deletedAt: new Date().toISOString(), updatedAt: new Date().toISOString() }, { merge: true });
+  }catch(e){
+    console.warn("Falha ao excluir na nuvem:", e);
+  }
+}
+
+function startCloudListener(){
+  const col = flightsCol();
+  if (!col) return;
+
+  if (typeof _unsubFlights === "function"){
+    try{ _unsubFlights(); }catch{}
+    _unsubFlights = null;
+  }
+
+  _unsubFlights = col.onSnapshot((snap) => {
+    let changed = false;
+    snap.docChanges().forEach(ch => {
+      const data = ch.doc.data() || {};
+      if (!data.id) data.id = ch.doc.id;
+
+      // garante campos mínimos esperados pelo app
+      if (!data.fields) data.fields = {};
+      if (!data.date) data.date = "";
+      if (!data.createdAt) data.createdAt = data.updatedAt || new Date().toISOString();
+
+      changed = mergeCloudEntryIntoLocal(data) || changed;
+    });
+
+    if (changed){
+      saveAll();
+      // se estiver no histórico, re-renderiza sem mexer na navegação
+      const hist = document.getElementById("tab-history");
+      if (hist && hist.style.display !== "none") renderHistory();
+    }
+  }, (err) => {
+    console.warn("Listener Firestore erro:", err);
+  });
+}
+
+async function cloudInitialSync(){
+  try{
+    const col = flightsCol();
+    if (!col) return;
+
+    const snap = await col.get();
+    let changed = false;
+
+    snap.forEach(doc => {
+      const data = doc.data() || {};
+      if (!data.id) data.id = doc.id;
+
+      if (!data.fields) data.fields = {};
+      if (!data.createdAt) data.createdAt = data.updatedAt || new Date().toISOString();
+
+      changed = mergeCloudEntryIntoLocal(data) || changed;
+    });
+
+    if (changed){
+      saveAll();
+      renderHistory();
+      updateAutoNum();
+    }
+  }catch(e){
+    console.warn("Falha no sync inicial:", e);
+  }
+}
+
+function enableSharedHistory(){
+  // Inicializa Firebase e começa sync + listener.
+  if (!firebaseInit()) return;
+  cloudInitialSync();
+  startCloudListener();
+}
+/* ===== Fim: Histórico compartilhado ===== */
+
+
 const DEFAULT_OP_CODES = [
   "1 - PLANEJAMENTO OPERACIONAL",
   "2 - INTELIGÊNCIA",
@@ -466,6 +649,7 @@ function saveEntry(){
   updateAutoNum();
 
   const entry = buildEntryFromForm();
+  entry.updatedAt = entry.createdAt;
   entry.fields.num = normalizeStr(document.getElementById("f_num")?.value) || entry.fields.num;
 
   const ua = entry.fields.ua;
@@ -476,6 +660,7 @@ function saveEntry(){
 
   entries.push(entry);
   saveAll();
+  cloudUpsertEntry(entry);
   ensureUASelects();
   clearForm();
   showMsg("Registro salvo!");
@@ -881,6 +1066,7 @@ function addUA(){
   if (!defaultUA) defaultUA = v;
   if (input) input.value = "";
   saveAll();
+  cloudUpsertEntry(e);
   ensureUASelects();
   renderUAs();
   showMsg("UA adicionada!");
@@ -926,6 +1112,7 @@ function openEditModal(id){
   editId = id;
   ensureUASelects();
   buildPickers();
+  enableSharedHistory();
 
   const f = e.fields || {};
   document.getElementById("modalSub").textContent =
@@ -979,6 +1166,7 @@ function saveEdit(){
   };
 
   e.fields = nf;
+  touchEntryUpdatedAt(e);
   entries[idx] = e;
 
   if (nf.ua && !uas.includes(nf.ua)) uas.push(nf.ua);
@@ -998,6 +1186,7 @@ function deleteEdit(){
 
   entries.splice(idx, 1);
   saveAll();
+  cloudDeleteEntry(editId);
   closeModal();
   renderHistory();
   showMsg("Registro excluído.");
