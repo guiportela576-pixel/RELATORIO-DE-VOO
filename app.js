@@ -1,5 +1,5 @@
 // Relatório de Voo (PWA) - armazenamento local
-const APP_VERSION = "1.6.0";
+const APP_VERSION = "1.6.1";
 const VERSION_HISTORY = [
   "1.3.0 - Sincronização automática no Google Drive (login Google no app)",
   "1.2.3 - Códigos de operação pré-carregados (não sobrescreve dados existentes)",
@@ -80,6 +80,15 @@ let syncQueued = false;
 function setGoogleStatus(text){
   const el = document.getElementById("googleStatus");
   if (el) el.textContent = text;
+}
+
+
+
+function setGoogleButtonEnabled(enabled){
+  const btn = document.getElementById("btnGoogleConnect");
+  if (!btn) return;
+  btn.disabled = !enabled;
+  btn.style.opacity = enabled ? "1" : "0.6";
 }
 
 function initGoogleAuth(){

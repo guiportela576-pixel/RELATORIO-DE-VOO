@@ -1,4 +1,4 @@
-const CACHE_NAME = "relatorio-voo-ios-v33";
+const CACHE_NAME = "relatorio-voo-ios-v34";
 
 self.addEventListener("install", (event) => {
   self.skipWaiting();
@@ -7,8 +7,8 @@ self.addEventListener("install", (event) => {
       cache.addAll([
         "./",
         "./index.html",
-        "./style.css?v=33",
-        "./app.js?v=33",
+        "./style.css?v=34",
+        "./app.js?v=34",
         "./manifest.json",
         "./icon.png"
       ])
