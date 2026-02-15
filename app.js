@@ -1,7 +1,8 @@
 // Relatório de Voo (PWA) - armazenamento local
-const APP_VERSION = "1.3.0";
+const APP_VERSION = "1.5.0";
 const VERSION_HISTORY = [
-  "1.3.0 - Sincronização automática no Google Drive (login Google no app)",
+  "1.5.0 - Auto sync (modo operação) mais rápido e inteligente",
+  "1.4.0 - Auto sync quase em tempo real entre aparelhos",
   "1.2.3 - Códigos de operação pré-carregados (não sobrescreve dados existentes)",
   "1.2.2 - Correção: botões/tabs voltaram a funcionar (erro JS) + VOO decimal no teclado",
   "1.2.0 - Códigos de operação + total de minutos do dia + export PDF corrigido (Android/iOS) + teclado numérico (Voo/Cargas)",
@@ -60,247 +61,6 @@ if (!Array.isArray(opCodes) || opCodes.length === 0){
   localStorage.setItem("opCodes", JSON.stringify(opCodes));
 }
 
-
-
-/* =========================================================
-   GOOGLE DRIVE SYNC (Login Google + merge seguro)
-   - Usa OAuth (Google Identity Services)
-   - Usa Drive API v3 via fetch
-   - Armazena um arquivo JSON no Drive (drive.file)
-   ========================================================= */
-const GOOGLE_CLIENT_ID = "128740673498-o5pmlhng1m8680fsa5nqre07t7kk7seu.apps.googleusercontent.com";
-const DRIVE_SYNC_FILENAME = "drone_log_sync.json";
-const DRIVE_SYNC_MIME = "application/json";
-
-let googleAccessToken = "";
-let googleTokenClient = null;
-let syncInProgress = false;
-let syncQueued = false;
-
-function setGoogleStatus(text){
-  const el = document.getElementById("googleStatus");
-  if (el) el.textContent = text;
-}
-
-function initGoogleAuth(){
-  try{
-    if (!window.google || !google.accounts || !google.accounts.oauth2){
-      setTimeout(initGoogleAuth, 700);
-      return;
-    }
-    googleTokenClient = google.accounts.oauth2.initTokenClient({
-      client_id: GOOGLE_CLIENT_ID,
-      scope: "https://www.googleapis.com/auth/drive.file",
-      callback: (resp) => {
-        if (resp && resp.access_token){
-          googleAccessToken = resp.access_token;
-          localStorage.setItem("googleAccessToken", googleAccessToken);
-          setGoogleStatus("Google: conectado ✅");
-          if (syncQueued && !syncInProgress){
-            syncQueued = false;
-            syncNow(false);
-          }
-        }else{
-          setGoogleStatus("Google: não conectado");
-        }
-      }
-    });
-    const saved = localStorage.getItem("googleAccessToken") || "";
-    if (saved){
-      googleAccessToken = saved;
-      setGoogleStatus("Google: conectado ✅");
-    }else{
-      setGoogleStatus("Google: não conectado");
-    }
-  }catch(e){
-    setGoogleStatus("Google: não conectado");
-  }
-}
-
-function connectGoogle(){
-  if (!googleTokenClient){
-    alert("O Google ainda está carregando. Tente novamente em alguns segundos.");
-    return;
-  }
-  googleTokenClient.requestAccessToken({ prompt: "consent" });
-}
-
-function ensureGoogleToken(interactive){
-  return new Promise((resolve, reject) => {
-    if (googleAccessToken){
-      resolve(googleAccessToken);
-      return;
-    }
-    if (!googleTokenClient){
-      if (interactive){
-        alert("O Google ainda está carregando. Tente novamente em alguns segundos.");
-      }
-      reject(new Error("no_token_client"));
-      return;
-    }
-    googleTokenClient.requestAccessToken({ prompt: interactive ? "consent" : "" });
-
-    const t0 = Date.now();
-    const timer = setInterval(() => {
-      if (googleAccessToken){
-        clearInterval(timer);
-        resolve(googleAccessToken);
-      }else if (Date.now() - t0 > 8000){
-        clearInterval(timer);
-        reject(new Error("token_timeout"));
-      }
-    }, 200);
-  });
-}
-
-async function driveFetch(url, opts={}){
-  const headers = Object.assign({}, opts.headers || {}, {
-    "Authorization": "Bearer " + googleAccessToken
-  });
-  return fetch(url, Object.assign({}, opts, { headers }));
-}
-
-async function findSyncFileId(){
-  const q = encodeURIComponent(`name='${DRIVE_SYNC_FILENAME}' and mimeType='${DRIVE_SYNC_MIME}' and trashed=false`);
-  const fields = encodeURIComponent("files(id,name,modifiedTime)");
-  const url = `https://www.googleapis.com/drive/v3/files?q=${q}&fields=${fields}&spaces=drive&pageSize=10`;
-  const res = await driveFetch(url);
-  if (!res.ok) return "";
-  const data = await res.json();
-  const f = (data.files || [])[0];
-  return f ? String(f.id || "") : "";
-}
-
-async function createSyncFile(initialJson){
-  const boundary = "-------droneLogBoundary" + Math.random().toString(16).slice(2);
-  const metadata = { name: DRIVE_SYNC_FILENAME, mimeType: DRIVE_SYNC_MIME };
-  const body =
-    `--${boundary}\r\n` +
-    `Content-Type: application/json; charset=UTF-8\r\n\r\n` +
-    `${JSON.stringify(metadata)}\r\n` +
-    `--${boundary}\r\n` +
-    `Content-Type: ${DRIVE_SYNC_MIME}; charset=UTF-8\r\n\r\n` +
-    `${initialJson}\r\n` +
-    `--${boundary}--`;
-
-  const res = await driveFetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id", {
-    method: "POST",
-    headers: { "Content-Type": "multipart/related; boundary=" + boundary },
-    body
-  });
-  if (!res.ok) throw new Error("create_failed");
-  const data = await res.json();
-  return String(data.id || "");
-}
-
-async function downloadSyncFile(fileId){
-  const url = `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?alt=media`;
-  const res = await driveFetch(url);
-  if (!res.ok) throw new Error("download_failed");
-  return await res.text();
-}
-
-async function uploadSyncFile(fileId, jsonText){
-  const url = `https://www.googleapis.com/upload/drive/v3/files/${encodeURIComponent(fileId)}?uploadType=media`;
-  const res = await driveFetch(url, {
-    method: "PATCH",
-    headers: { "Content-Type": DRIVE_SYNC_MIME },
-    body: jsonText
-  });
-  if (!res.ok) throw new Error("upload_failed");
-  return true;
-}
-
-function buildSyncPayload(){
-  return JSON.stringify({
-    app: "drone_log",
-    updatedAt: new Date().toISOString(),
-    entries: Array.isArray(entries) ? entries : [],
-    uas: Array.isArray(uas) ? uas : [],
-    defaultUA: String(defaultUA || ""),
-    opCodes: Array.isArray(opCodes) ? opCodes : []
-  });
-}
-
-function mergeRemoteIntoLocal(remote){
-  const localById = new Map((Array.isArray(entries) ? entries : []).map(e => [e.id, e]));
-  (Array.isArray(remote.entries) ? remote.entries : []).forEach(e => {
-    if (e && e.id && !localById.has(e.id)){
-      localById.set(e.id, e);
-    }
-  });
-  entries = Array.from(localById.values());
-
-  const uaSet = new Set((Array.isArray(uas) ? uas : []).map(normalizeStr).filter(Boolean));
-  (Array.isArray(remote.uas) ? remote.uas : []).forEach(u => { const x = normalizeStr(u); if (x) uaSet.add(x); });
-  uas = Array.from(uaSet.values());
-
-  const cSet = new Set((Array.isArray(opCodes) ? opCodes : []).map(normalizeStr).filter(Boolean));
-  (Array.isArray(remote.opCodes) ? remote.opCodes : []).forEach(c => { const x = normalizeStr(c); if (x) cSet.add(x); });
-  opCodes = Array.from(cSet.values());
-  opCodes.sort((a,b) => a.localeCompare(b, "pt-BR", {numeric:true, sensitivity:"base"}));
-
-  if (!defaultUA && remote.defaultUA) defaultUA = String(remote.defaultUA);
-
-  saveAll();
-  ensureUASelects();
-  ensureCodeSelects();
-}
-
-async function syncNow(interactive){
-  if (syncInProgress){
-    syncQueued = true;
-    return;
-  }
-  try{
-    await ensureGoogleToken(!!interactive);
-  }catch(e){
-    if (interactive){
-      alert("Você precisa conectar o Google para sincronizar.");
-    }
-    return;
-  }
-
-  syncInProgress = true;
-  setGoogleStatus("Google: sincronizando…");
-
-  try{
-    let fileId = localStorage.getItem("driveSyncFileId") || "";
-    if (!fileId){
-      fileId = await findSyncFileId();
-    }
-
-    if (!fileId){
-      fileId = await createSyncFile(buildSyncPayload());
-      localStorage.setItem("driveSyncFileId", fileId);
-      setGoogleStatus("Google: sincronizado ✅");
-      return;
-    }
-
-    localStorage.setItem("driveSyncFileId", fileId);
-
-    let remoteText = "";
-    try{
-      remoteText = await downloadSyncFile(fileId);
-    }catch(e){
-      await uploadSyncFile(fileId, buildSyncPayload());
-      setGoogleStatus("Google: sincronizado ✅");
-      return;
-    }
-
-    let remote = {};
-    try{ remote = JSON.parse(remoteText || "{}"); }catch{ remote = {}; }
-    mergeRemoteIntoLocal(remote);
-
-    await uploadSyncFile(fileId, buildSyncPayload());
-    setGoogleStatus("Google: sincronizado ✅");
-  }catch(e){
-    setGoogleStatus("Google: erro de sync (salvo local)");
-  }finally{
-    syncInProgress = false;
-  }
-}
-
 let runStartMs = null; // cronômetro
 let lastStartedAt = null; // string HH:MM
 
@@ -312,7 +72,7 @@ function saveAll(){
 }
 
 function pad2(n){ return String(n).padStart(2, "0"); }
-function todayISO(){ return getTodayLocalISO(); }
+function todayISO(){ return new Date().toISOString().slice(0,10); }
 function nowHHMM(){
   const d = new Date();
   return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
@@ -321,15 +81,6 @@ function minutesBetween(startMs, endMs){
   const ms = Math.max(0, (endMs - startMs));
   return Math.max(1, Math.ceil(ms / 60000));
 }
-
-function getTodayLocalISO(){
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth()+1).padStart(2,"0");
-  const day = String(d.getDate()).padStart(2,"0");
-  return `${y}-${m}-${day}`;
-}
-
 function normalizeStr(s){
   return String(s || "").trim().replace(/\s+/g, " ");
 }
@@ -966,8 +717,8 @@ function renderHistory(){
     const batText = (batCount === 1) ? "1 bateria" : `${batCount} baterias`;
     const flights = listDay.length;
 const vooText = (flights === 1) ? "1 voo" : `${flights} voos`;
-const label = "Total voado hoje";
-  dayTotalEl.textContent = `${label}: ${totalMin}min - ${vooText} - ${batText}`;
+const label = (day === todayISO()) ? "Total voado hoje" : `Total voado em ${day}`;
+dayTotalEl.textContent = `${label} ${totalMin}min * ${vooText} * ${batText}`;
     dayTotalEl.style.display = "block";
   }
 
@@ -1256,7 +1007,6 @@ function deleteEdit(){
 
 /* ===== PWA: registrar SW ===== */
 (function init(){
-  initGoogleAuth();
   ensureUASelects();
   ensureCodeSelects();
   buildPickers();
@@ -1339,12 +1089,83 @@ function deleteEdit(){
 })();
 
 
-// v28 - recolher/mostrar lista de códigos (aba UA)
-function toggleCodeList(){
-  const list = document.getElementById("codeList");
-  const btn = document.getElementById("btnToggleCodes");
-  if (!list) return;
-  const isHidden = (list.style.display === "none");
-  list.style.display = isHidden ? "" : "none";
-  if (btn) btn.textContent = isHidden ? "Recolher lista" : "Mostrar lista";
+
+// v30 - auto sync watcher (modo operação profissional)
+// - 3s quando o app está visível
+// - 12s quando está em segundo plano
+// - faz sync imediato ao voltar (focus/visibility)
+let autoSyncTimer = null;
+let lastRemoteModifiedTime = "";
+let autoSyncIntervalMs = 8000;
+let autoSyncFailCount = 0;
+
+function computeAutoSyncInterval(){
+  const hidden = document.hidden;
+  // 3s quando visível, 12s quando oculto
+  autoSyncIntervalMs = hidden ? 12000 : 3000;
+  // backoff leve se falhar
+  if (autoSyncFailCount >= 3) autoSyncIntervalMs = Math.max(autoSyncIntervalMs, 15000);
+}
+
+async function getRemoteModifiedTime(){
+  if(!googleAccessToken) return "";
+  const fileId = localStorage.getItem("driveSyncFileId") || "";
+  if(!fileId) return "";
+  try{
+    const res = await driveFetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?fields=modifiedTime`);
+    if(!res.ok) return "";
+    const data = await res.json();
+    return String(data.modifiedTime || "");
+  }catch(e){ return ""; }
+}
+
+async function autoSyncTick(){
+  if(syncInProgress) return;
+  if(!googleAccessToken) return;
+  try{
+    const mt = await getRemoteModifiedTime();
+    if(!mt) return;
+    if(!lastRemoteModifiedTime){ lastRemoteModifiedTime = mt; return; }
+    if(mt !== lastRemoteModifiedTime){
+      lastRemoteModifiedTime = mt;
+      await syncNow(false);
+      try{ applyFilters(); }catch(e){}
+    }
+    autoSyncFailCount = 0;
+  }catch(e){
+    autoSyncFailCount++;
+  }finally{
+    // reprograma com intervalo atualizado
+    restartAutoSyncTimer();
+  }
+}
+
+function restartAutoSyncTimer(){
+  computeAutoSyncInterval();
+  if(autoSyncTimer) clearTimeout(autoSyncTimer);
+  autoSyncTimer = setTimeout(autoSyncTick, autoSyncIntervalMs);
+}
+
+function startAutoSyncWatcher(){
+  // instala listeners 1x
+  if(!window.__autoSyncListenersInstalled){
+    window.__autoSyncListenersInstalled = true;
+
+    document.addEventListener("visibilitychange", () => {
+      // ao voltar pra tela, faz tick imediato
+      restartAutoSyncTimer();
+      if(!document.hidden) setTimeout(autoSyncTick, 250);
+    });
+
+    window.addEventListener("focus", () => {
+      restartAutoSyncTimer();
+      setTimeout(autoSyncTick, 250);
+    });
+
+    window.addEventListener("online", () => {
+      restartAutoSyncTimer();
+      setTimeout(autoSyncTick, 250);
+    });
+  }
+  restartAutoSyncTimer();
 }
