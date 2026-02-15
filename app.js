@@ -844,7 +844,7 @@ function applyAppState(state){
    - Pull: JSONP (script tag) => precisa do Apps Script retornar callback(...)
    - Push: sendBeacon (não precisa ler resposta)
 */
-function syncPullViaJSONP(timeoutMs = 12000){
+function syncPullViaJSONP(timeoutMs = 20000){
   return new Promise((resolve, reject) => {
     const cbName = "__droneLogSyncCb_" + Math.random().toString(36).slice(2);
     const url = SYNC_URL + "?callback=" + encodeURIComponent(cbName) + "&_=" + Date.now();
@@ -920,7 +920,7 @@ async function syncPull(){
     showMsg("Sincronizado!");
   }catch(err){
     console.error(err);
-    setSyncStatus("Erro ao atualizar. Vou ajustar para funcionar com a planilha.");
+    setSyncStatus("Erro ao atualizar: " + (err && err.message ? err.message : "falha desconhecida") + ".");
     showMsg("Falha ao sincronizar.");
   }
 }
@@ -934,7 +934,7 @@ async function syncPush(){
     showMsg("Enviado!");
   }catch(err){
     console.error(err);
-    setSyncStatus("Erro ao enviar. Vou ajustar para funcionar com a planilha.");
+    setSyncStatus("Erro ao enviar: " + (err && err.message ? err.message : "falha desconhecida") + ".");
     showMsg("Falha ao enviar.");
   }
 }
