@@ -205,7 +205,7 @@ button{
   color: rgba(255,255,255,0.92);
 
   font-weight: 900;
-  font-size: 16px;
+  font-size: 14px;
 
   box-shadow: 0 14px 30px rgba(0,0,0,0.30);
   transition: transform 0.08s ease, background 0.18s ease, border-color 0.18s ease;
@@ -545,56 +545,23 @@ input[type="date"], input[type="time"]{
   }
 }
 
+/* v31 - resumo do dia maior */
+#dayTotal{font-size:15px !important; font-weight:900; line-height:1.35;}
 
-/* ===== PDF Preview ===== */
-.pdf-card{
-  width: min(900px, 96vw);
-  max-height: 92vh;
-  display: flex;
-  flex-direction: column;
+
+/* v32 - selo de versão (canto inferior direito) */
+#appVersionBadge{
+  position: fixed;
+  right: 10px;
+  bottom: 10px;
+  z-index: 9999;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 4px 8px;
+  border-radius: 10px;
+  background: rgba(0,0,0,0.08);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  pointer-events: none;
+  user-select: none;
 }
-
-.pdf-frame-wrap{
-  flex: 1;
-  min-height: 55vh;
-  border: 1px solid rgba(255,255,255,0.12);
-  border-radius: 12px;
-  overflow: hidden;
-}
-
-#pdfFrame{
-  width: 100%;
-  height: 100%;
-  border: 0;
-  background: #fff;
-}
-
-
-/* ===== Code Picker (quase tela cheia) ===== */
-#codePickerModal .modal-card{
-  width: 100%;
-  max-width: 720px;
-  height: 86vh;
-  max-height: 86vh;
-}
-
-/* Botões/itens do picker: 1 linha, um embaixo do outro */
-#codePickerList{ padding: 0; margin: 0; list-style: none; }
-#codePickerList li{ padding: 0; border-bottom: 1px solid rgba(255,255,255,0.10); }
-#codePickerList li:last-child{ border-bottom: none; }
-
-.picker-item{
-  width: 100%;
-  text-align: left;
-  border-radius: 0;
-  border: none;
-  background: transparent;
-  box-shadow: none;
-  padding: 14px 6px;
-  font-size: 16px;
-  font-weight: 900;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.picker-item:active{ transform: none; opacity: 0.85; }
