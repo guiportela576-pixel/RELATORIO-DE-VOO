@@ -9,7 +9,7 @@ const VERSION_HISTORY = [
 ];
 
 // URL do Apps Script (Planilha) para sincronização
-const SYNC_URL = "https://script.google.com/macros/s/AKfycbzweP8a7LOy6ZEvfxuWWvG7f1bOFiIzvOCFncYZYJ9s_K5ICshy7ta1JVuS3RWbOJLm/exec";
+const SYNC_URL = "https://script.google.com/macros/s/AKfycbzvavI93pQGiyX5hWhOSdPfHgQcIQxLJQXrjkht4gw0ax_6ZtPn1NUsNs24pIcE9i32/exec";
 
 
 let entries = JSON.parse(localStorage.getItem("flightReports")) || [];
@@ -844,6 +844,37 @@ function applyAppState(state){
    - Pull: JSONP (script tag) => precisa do Apps Script retornar callback(...)
    - Push: sendBeacon (não precisa ler resposta)
 */
+
+function syncExtractStateFromResponse(resp){
+  if (!resp || !resp.ok) return null;
+
+  // Formato novo: { ok:true, payload:{...} }
+  if (resp.payload && typeof resp.payload === "object") return resp.payload;
+
+  // Formato alternativo: { ok:true, data:[[...],[...]] } (linhas da planilha)
+  if (Array.isArray(resp.data)){
+    // Procura de trás pra frente uma coluna 2 que pareça JSON do estado
+    for (let i = resp.data.length - 1; i >= 0; i--){
+      const row = resp.data[i];
+      if (!row || row.length < 2) continue;
+      const cell = row[1];
+      if (typeof cell !== "string") continue;
+      const s = cell.trim();
+      if (!s) continue;
+      // ignora cabeçalho comum
+      const upper = s.toUpperCase();
+      if (upper === "PAYLOAD" || upper === "DADOS" || upper === "DATA") continue;
+
+      try{
+        const parsed = JSON.parse(s);
+        if (parsed && typeof parsed === "object") return parsed;
+      }catch(e){}
+    }
+  }
+
+  return null;
+}
+
 function syncPullViaJSONP(timeoutMs = 20000){
   return new Promise((resolve, reject) => {
     const cbName = "__droneLogSyncCb_" + Math.random().toString(36).slice(2);
@@ -869,13 +900,10 @@ function syncPullViaJSONP(timeoutMs = 20000){
       done = true;
       clearTimeout(t);
       cleanup();
-      // resp esperado: { ok:true, payload:{...} }
-      if (resp && resp.ok && resp.payload){
-        resolve(resp.payload);
-      }else{
-        resolve(null);
-      }
-    };
+      // resp pode vir em formatos diferentes (payload ou data)
+      const extracted = syncExtractStateFromResponse(resp);
+      resolve(extracted);
+};
 
     s.onerror = () => {
       if (done) return;
