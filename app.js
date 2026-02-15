@@ -59,6 +59,28 @@ if (!Array.isArray(opCodes) || opCodes.length === 0){
   localStorage.setItem("opCodes", JSON.stringify(opCodes));
 }
 
+// UI: recolher/mostrar lista de códigos (aba UA)
+let codesCollapsed = false;
+try{
+  codesCollapsed = JSON.parse(localStorage.getItem("codesCollapsed") || "false") === true;
+}catch{ codesCollapsed = false; }
+
+function syncCodesToggleUI(){
+  const ul = document.getElementById("codeList");
+  const btn = document.getElementById("btnToggleCodes");
+  if (ul) ul.style.display = codesCollapsed ? "none" : "block";
+  if (btn){
+    btn.textContent = codesCollapsed ? "Mostrar códigos" : "Recolher códigos";
+    btn.setAttribute("aria-expanded", String(!codesCollapsed));
+  }
+}
+
+function toggleCodes(){
+  codesCollapsed = !codesCollapsed;
+  localStorage.setItem("codesCollapsed", JSON.stringify(codesCollapsed));
+  syncCodesToggleUI();
+}
+
 let runStartMs = null; // cronômetro
 let lastStartedAt = null; // string HH:MM
 
@@ -274,6 +296,7 @@ function renderCodePicker(){
     const li = document.createElement("li");
     li.textContent = "Nenhum código cadastrado ainda (cadastre na aba UA).";
     ul.appendChild(li);
+    syncCodesToggleUI();
     return;
   }
 
@@ -794,6 +817,7 @@ function renderUAs(){
   if (vh){
     vh.innerHTML = "";
     renderCodes();
+    syncCodesToggleUI();
 
     VERSION_HISTORY.forEach(item => {
       const li = document.createElement("li");
@@ -829,6 +853,8 @@ function renderCodes(){
     `;
     ul.appendChild(li);
   });
+
+  syncCodesToggleUI();
 }
 
 function addCode(){
