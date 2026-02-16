@@ -15,6 +15,9 @@ const SYNC_URL = "https://script.google.com/macros/s/AKfycbzvavI93pQGiyX5hWhOSdP
 let entries = JSON.parse(localStorage.getItem("flightReports")) || [];
 let uas = JSON.parse(localStorage.getItem("uas")) || [];
 let defaultUA = localStorage.getItem("defaultUA") || "";
+
+let names = JSON.parse(localStorage.getItem("pilotNames")) || [];
+let defaultName = localStorage.getItem("defaultName") || "";
 let opCodes = JSON.parse(localStorage.getItem("opCodes")) || [];
 let codesCollapsed = localStorage.getItem("codesCollapsed") === "1";
 
@@ -72,10 +75,18 @@ function saveAll(){
   localStorage.setItem("uas", JSON.stringify(Array.isArray(uas) ? uas : []));
   localStorage.setItem("defaultUA", String(defaultUA || ""));
   localStorage.setItem("opCodes", JSON.stringify(Array.isArray(opCodes) ? opCodes : []));
+  localStorage.setItem("pilotNames", JSON.stringify(Array.isArray(names) ? names : []));
+  localStorage.setItem("defaultName", String(defaultName || ""));
 }
 
 function pad2(n){ return String(n).padStart(2, "0"); }
-function todayISO(){ return new Date().toISOString().slice(0,10); }
+function todayISO(){
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,"0");
+  const day = String(d.getDate()).padStart(2,"0");
+  return `${y}-${m}-${day}`;
+}
 function nowHHMM(){
   const d = new Date();
   return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
@@ -222,6 +233,100 @@ function ensureUASelects(){
 
   if (selectNew && defaultUA && uas.includes(defaultUA)) selectNew.value = defaultUA;
 }
+
+
+function ensureNameSelects(){
+  // select no formulário NOVO
+  const sel = document.getElementById("f_nome");
+  if (sel){
+    sel.innerHTML = "";
+    const opts = ["", ...names];
+    opts.forEach(n => {
+      const o = document.createElement("option");
+      o.value = n;
+      o.textContent = n ? n : "—";
+      sel.appendChild(o);
+    });
+    if (defaultName && names.includes(defaultName)){
+      sel.value = defaultName;
+    }else{
+      sel.value = "";
+    }
+  }
+
+  // select no modal (se existir)
+  const selEdit = document.getElementById("e_nome");
+  if (selEdit){
+    selEdit.innerHTML = "";
+    const opts = ["", ...names];
+    opts.forEach(n => {
+      const o = document.createElement("option");
+      o.value = n;
+      o.textContent = n ? n : "—";
+      selEdit.appendChild(o);
+    });
+  }
+
+  renderNameList();
+}
+
+function renderNameList(){
+  const ul = document.getElementById("nameList");
+  if (!ul) return;
+
+  ul.innerHTML = "";
+  if (!names.length){
+    const li = document.createElement("li");
+    li.innerHTML = '<div class="hint">Nenhum nome cadastrado ainda.</div>';
+    ul.appendChild(li);
+    return;
+  }
+
+  names.forEach(n => {
+    const li = document.createElement("li");
+    const isDef = (defaultName && n === defaultName);
+    li.innerHTML = `
+      <div class="row space">
+        <div class="cardline"><strong>NOME:</strong> ${n}${isDef ? " (padrão)" : ""}</div>
+        <button type="button" class="ghost" onclick="setDefaultName('${n.replace(/`/g,"")}')">Usar</button>
+      </div>
+    `;
+    ul.appendChild(li);
+  });
+}
+
+function addName(){
+  const v = normalizeStr(document.getElementById("nameNew")?.value);
+  if (!v) return;
+
+  if (!names.includes(v)){
+    names.push(v);
+  }
+  if (!defaultName) defaultName = v;
+
+  saveAll();
+  ensureNameSelects();
+
+  const inp = document.getElementById("nameNew");
+  if (inp) inp.value = "";
+
+  showMsg("Nome salvo!");
+}
+
+function setDefaultName(force){
+  const v = normalizeStr(force || document.getElementById("nameNew")?.value);
+  if (!v) return;
+
+  if (!names.includes(v)){
+    names.push(v);
+  }
+  defaultName = v;
+
+  saveAll();
+  ensureNameSelects();
+  showMsg("Nome padrão definido!");
+}
+
 
 function ensureCodeSelects(){
   const elNew = document.getElementById("f_codigo"); // agora é input readonly
@@ -403,6 +508,7 @@ function buildEntryFromForm(){
   const voo = normalizeDecimalDots(getFieldValue("f_voo"));
   const inicio = normalizeStr(getFieldValue("f_inicio")); // automático
   const tempo = normalizeStr(getFieldValue("f_tempo"));   // automático
+  const nome = normalizeStr(getFieldValue("f_nome")) || defaultName;
   const ua = normalizeStr(getFieldValue("f_ua"));
 
   const ciclos = normalizeStr(getFieldValue("f_ciclos"));
@@ -415,7 +521,7 @@ function buildEntryFromForm(){
     id: (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2)),
     date: selectedDate,
     createdAt: new Date().toISOString(),
-    fields: { num, missao, codigo, voo, inicio, tempo, ua, ciclos, nbat, cargaIni, cargaFim, obs }
+    fields: { num, missao, codigo, voo, inicio, tempo, nome, ua, ciclos, nbat, cargaIni, cargaFim, obs }
   };
 }
 
@@ -473,6 +579,12 @@ function saveEntry(){
   const entry = buildEntryFromForm();
   entry.fields.num = normalizeStr(document.getElementById("f_num")?.value) || entry.fields.num;
 
+  const nome = normalizeStr(entry.fields.nome);
+  if (nome && !names.includes(nome)){
+    names.push(nome);
+    if (!defaultName) defaultName = nome;
+  }
+
   const ua = entry.fields.ua;
   if (ua && !uas.includes(ua)){
     uas.push(ua);
@@ -524,6 +636,12 @@ function clearForm(){
   const btnEnd = document.getElementById("btnEnd");
   if (btnStart) btnStart.disabled = false;
   if (btnEnd) btnEnd.disabled = true;
+  const nameSel = document.getElementById("f_nome");
+  if (nameSel){
+    if (defaultName && names.includes(defaultName)) nameSel.value = defaultName;
+    else nameSel.value = "";
+  }
+
 }
 
 function formatForCopy(e){
@@ -592,6 +710,7 @@ function exportPdfDay(){
       <div class="item">
         <div class="cardline"><strong>DATA:</strong> ${e.date || "-"}</div>
         <div class="cardline"><strong>Nº:</strong> ${f.num || "-"}</div>
+      <div class="cardline"><strong>NOME:</strong> ${f.nome || "-"}</div>
         <div class="cardline"><strong>MISSÃO:</strong> ${f.missao || "-"}</div>
         <div class="cardline"><strong>CÓDIGO:</strong> ${f.codigo || "-"}</div>
         <div class="cardline"><strong>VOO:</strong> ${f.voo || "-"}</div>
@@ -749,6 +868,7 @@ dayTotalEl.textContent = `${label}: ${totalMin}min - ${vooText} - ${batText}`;
     li.innerHTML = `
       <div class="cardline"><strong>DATA:</strong> ${e.date || "-"}</div>
       <div class="cardline"><strong>Nº:</strong> ${f.num || "-"}</div>
+      <div class="cardline"><strong>NOME:</strong> ${f.nome || "-"}</div>
       <div class="cardline"><strong>MISSÃO:</strong> ${f.missao || "-"}</div>
       <div class="cardline"><strong>CÓDIGO:</strong> ${f.codigo || "-"}</div>
       <div class="cardline"><strong>VOO:</strong> ${f.voo || "-"}</div>

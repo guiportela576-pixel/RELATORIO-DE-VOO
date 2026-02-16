@@ -5,7 +5,7 @@
   <title>📝 Relatório de Voo</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <link rel="manifest" href="manifest.json" />
-  <link rel="stylesheet" href="style.css?v=29" />
+  <link rel="stylesheet" href="style.css?v=30" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 </head>
@@ -77,6 +77,11 @@
   <div class="field span-2">
     <label for="f_voo">Voo (opcional)</label>
     <input type="text" id="f_voo" inputmode="decimal" pattern="[0-9.,]*" placeholder="Ex: 1.1" lang="en-US" />
+  </div>
+
+  <div class="field span-2">
+    <label for="f_nome">Nome</label>
+    <select id="f_nome"></select>
   </div>
 
   <div class="field span-2">
@@ -156,7 +161,23 @@
         <div id="syncStatus" class="hint" style="margin-top:6px;"></div>
 
 
+        
+        <h3 style="margin-top:12px;">Nome</h3>
+        <p class="hint">Defina aqui o nome de quem está usando este celular. Esse nome sai automático nos registros.</p>
         <div class="grid">
+          <input type="text" id="nameNew" class="span-2" placeholder="Ex: Guilherme" />
+        </div>
+        <div class="row" style="margin-top:8px;">
+          <button type="button" onclick="addName()">Adicionar</button>
+          <button type="button" class="ghost" onclick="setDefaultName()">Definir como padrão</button>
+        </div>
+
+        <h3 style="margin-top:12px;">Lista de nomes</h3>
+        <ul id="nameList" class="list"></ul>
+
+        <div class="divider"></div>
+
+<div class="grid">
           <input type="text" id="uaNew" class="span-2" />
         </div>
         <div class="row" style="margin-top:8px;">
@@ -202,6 +223,9 @@
         <div class="grid" style="margin-top:10px;">
           <input type="number" id="e_num" min="1" />
           <input type="number" id="e_missao" inputmode="numeric" pattern="[0-9]*" min="1" placeholder="Ex: 1" />
+
+          <select id="e_nome"></select>
+
 
           <select id="e_codigo"></select>
 
@@ -252,7 +276,7 @@
     <footer class="tabs-footer" aria-hidden="true"></footer>
   </main>
 
-  <script src="app.js?v=29"></script>
+  <script src="app.js?v=30"></script>
 
   <!-- ===== Code Picker (Tela cheia) ===== -->
   <div id="codePickerModal" class="modal-overlay" style="display:none;" onclick="codePickerBackdrop(event)">
