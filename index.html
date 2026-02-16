@@ -26,7 +26,7 @@
           <span class="tab-label">Histórico</span>
         </button>
         <button id="tabBtnUAs" type="button" onclick="showTab('uas')">
-          <span class="tab-label">UA</span>
+          <span class="tab-label">Registro</span>
         </button>
       </div>
     </header>
@@ -131,6 +131,13 @@
           <button class="ghost" type="button" onclick="exportPdfDay()">Exportar PDF (dia)</button>
         </div>
 
+
+        <div class="row" style="margin-top:8px;">
+          <button type="button" class="ghost" onclick="syncPull()">Atualizar da planilha</button>
+          <button type="button" onclick="syncPush()">Enviar para planilha</button>
+        </div>
+        <div id="syncStatus" class="hint" style="margin-top:6px;"></div>
+
         <div class="grid" style="margin-top:10px;">
           <input type="date" id="filterDate" />
           <select id="filterUA"></select>
@@ -151,14 +158,10 @@
     <!-- ======= TAB: UA ======= -->
     <section id="tab-uas" class="tab-content" style="display:none;">
       <section class="card">
-        <h2>UA (Drone)</h2>
+        <h2>Registro</h2>
         <p class="hint">Cadastre aqui suas UAs para não precisar digitar toda vez.</p>
 
-        <div class="row" style="margin-top:8px;">
-          <button type="button" class="ghost" onclick="syncPull()">Atualizar da planilha</button>
-          <button type="button" onclick="syncPush()">Enviar para planilha</button>
-        </div>
-        <div id="syncStatus" class="hint" style="margin-top:6px;"></div>
+        
 
 
         
