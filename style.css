@@ -88,7 +88,7 @@ html, body{
 
   background: rgba(255,255,255,0.85);
   border: 1px solid rgba(120,130,145,0.28);
-  color: rgba(35,40,46,0.88);
+  color: #111;
 
   font-weight: 900;
   font-size: 12px;
@@ -99,7 +99,7 @@ html, body{
 .tabs button.active{
   background: linear-gradient(180deg, rgba(54,215,255,0.35), rgba(42,168,255,0.20));
   border-color: rgba(54,215,255,0.35);
-  color: var(--accent);
+  color: #111;
   box-shadow:
     0 0 0 4px rgba(54,215,255,0.10),
     0 10px 22px rgba(0,0,0,0.25);
@@ -211,14 +211,14 @@ button{
 button:active{ transform: translateY(1px); }
 
 button.primary{
-  background: linear-gradient(180deg, rgba(54,215,255,0.25), rgba(42,168,255,0.12));
-  border-color: rgba(0,0,0,0.96);
-  color: var(--accent);
+  background: linear-gradient(180deg, rgba(54,215,255,0.35), rgba(42,168,255,0.20));
+  border-color: rgba(120,130,145,0.45);
+  color: #111;
 }
 button.ghost{
-  background: rgba(255,255,255,0.05);
-  border-color: rgba(0,0,0,0.90);
-  color: rgba(255,255,255,0.86);
+  background: rgba(255,255,255,0.75);
+  border-color: rgba(120,130,145,0.45);
+  color: #111;
 }
 .btn-green{
   background: linear-gradient(180deg, rgba(34,197,94,0.26), rgba(34,197,94,0.12));
@@ -251,7 +251,7 @@ button.ghost{
   margin-bottom: 6px;
 }
 .cardline strong{
-  color: var(--accent);
+  color: #111;
   margin-right: 6px;
 }
 
@@ -728,3 +728,9 @@ button.danger{
 .app-header{
   padding-bottom: 10px;
 }
+
+
+/* v34b fix colors */
+.tabs button, .tabs button .tab-label, .tabs button.active, .tabs button.active .tab-label{ color:#111 !important; }
+button, button *{ color: #111; }
+.actions button{ color:#111 !important; }
