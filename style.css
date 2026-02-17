@@ -1,15 +1,15 @@
-/* ===== Drone Log — Visual "Aplicativo/Programa" moderno (v31 UI) =====
+/* ===== Drone Log — Visual "Aplicativo/Programa" moderno (v32 UI) =====
    * Mantém estrutura e funcionalidades.
    * Foco: paleta cinza + botões com cara de botão + efeitos.
 */
 
 :root{
   /* Base (cinza) */
-  --bg: #0f1115;
-  --bg2:#0b0c10;
-  --panel:#171a21;
-  --panel2:#1b1f28;
-  --panel3:#141821;
+  --bg: #5f6670;
+  --bg2:#4c525c;
+  --panel:#6f7782;
+  --panel2:#78818d;
+  --panel3:#676f7a;
   --border: rgba(255,255,255,0.10);
   --border2: rgba(255,255,255,0.06);
 
@@ -389,3 +389,11 @@ button.ghost{
 
 /* ===== Extras: melhor toque no iOS ===== */
 button, input, select, textarea{ -webkit-tap-highlight-color: transparent; }
+
+
+/* ===== Ajuste: Total voado hoje maior (v32) ===== */
+#dayTotal{
+  font-size: 16px;
+  font-weight: 900;
+  letter-spacing: 0.2px;
+}

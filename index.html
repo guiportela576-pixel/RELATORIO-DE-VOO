@@ -5,7 +5,7 @@
   <title>📝 Relatório de Voo</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <link rel="manifest" href="manifest.json" />
-  <link rel="stylesheet" href="style.css?v=31" />
+  <link rel="stylesheet" href="style.css?v=32" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 </head>
@@ -125,12 +125,6 @@
     <!-- ======= TAB: HISTÓRICO ======= -->
     <section id="tab-history" class="tab-content" style="display:none;">
       <section class="card">
-        <div class="row space">
-          <h2>Histórico</h2>
-          <button class="ghost" type="button" onclick="exportTextAll()">Copiar tudo</button>
-          <button class="ghost" type="button" onclick="exportPdfDay()">Exportar PDF (dia)</button>
-        </div>
-
 
         <div class="row" style="margin-top:8px;">
           <button type="button" class="ghost" onclick="syncPull()">Atualizar da planilha</button>
@@ -138,7 +132,13 @@
         </div>
         <div id="syncStatus" class="hint" style="margin-top:6px;"></div>
 
-        <div class="grid" style="margin-top:10px;">
+        <div class="row space" style="margin-top:10px;">
+          <h2>Histórico</h2>
+          <button class="ghost" type="button" onclick="exportTextAll()">Copiar tudo</button>
+          <button class="ghost" type="button" onclick="exportPdfDay()">Exportar PDF (dia)</button>
+        </div>
+
+<div class="grid" style="margin-top:10px;">
           <input type="date" id="filterDate" />
           <select id="filterUA"></select>
         </div>
@@ -279,7 +279,7 @@
     <footer class="tabs-footer" aria-hidden="true"></footer>
   </main>
 
-  <script src="app.js?v=31"></script>
+  <script src="app.js?v=32"></script>
 
   <!-- ===== Code Picker (Tela cheia) ===== -->
   <div id="codePickerModal" class="modal-overlay" style="display:none;" onclick="codePickerBackdrop(event)">
