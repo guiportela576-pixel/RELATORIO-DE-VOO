@@ -1,61 +1,49 @@
-/* ===== Drone Log — Visual "Aplicativo/Programa" moderno (v32 UI) =====
-   * Mantém estrutura e funcionalidades.
-   * Foco: paleta cinza + botões com cara de botão + efeitos.
+/* ===== Relatório de Voo — Visual iOS moderno (v2.0) =====
+   Mantém a mesma estrutura e funcionalidades. Só muda aparência.
 */
 
 :root{
-  /* Base (cinza) */
-  --bg: #5f6670;
-  --bg2:#4c525c;
-  --panel:#6f7782;
-  --panel2:#78818d;
-  --panel3:#676f7a;
-  --border: rgba(255,255,255,0.10);
-  --border2: rgba(255,255,255,0.06);
+  /* Base */
+  --bg0: #d9dde2;
+  --bg1: #c6cbd2;
 
-  --text: rgba(255,255,255,0.92);
-  --muted: rgba(255,255,255,0.66);
+  /* Glass */
+  --glass: rgba(255,255,255,0.72);
+  --glass2: rgba(255,255,255,0.62);
+  --stroke: rgba(120,130,145,0.35);
+  --stroke2: rgba(0,0,0,0.25);
 
-  /* Cores de ação (ícones/botões) */
-  --primary:#3b82f6;   /* azul */
-  --success:#22c55e;   /* verde */
-  --danger:#ef4444;    /* vermelho */
-  --warning:#f59e0b;   /* amarelo */
-  --cyan:#22d3ee;
+  /* Text */
+  --text: rgba(25,30,36,0.95);
+  --muted: rgba(55,65,75,0.75);
 
-  /* Layout */
-  --radius: 18px;
-  --radius-sm: 14px;
+  /* Accent (iOS-like cyan/teal) */
+  --accent: #36d7ff;
+  --accent2:#2aa8ff;
 
-  /* Sombras (cara de app) */
-  --shadow-lg: 0 26px 70px rgba(0,0,0,0.55);
-  --shadow-md: 0 14px 34px rgba(0,0,0,0.45);
-  --shadow-sm: 0 10px 22px rgba(0,0,0,0.35);
+  /* Elevation */
+  --shadow: 0 10px 24px rgba(80,90,105,0.18);
+  --shadow2: 0 8px 18px rgba(80,90,105,0.16);
 
-  /* “Bevel”/relevo */
-  --bevel-in: inset 0 1px 0 rgba(255,255,255,0.10), inset 0 -1px 0 rgba(0,0,0,0.45);
-  --bevel-out: 0 1px 0 rgba(255,255,255,0.08);
+  --radius: 22px;
+  --radius-sm: 16px;
 }
 
 *{ box-sizing:border-box; }
 html, body{ height:100%; }
-body{
+html, body{
   margin:0;
   color: var(--text);
   background:
-    radial-gradient(1200px 700px at 20% -100px, rgba(34,211,238,0.10), transparent 55%),
-    radial-gradient(900px 600px at 85% 10%, rgba(59,130,246,0.10), transparent 55%),
-    linear-gradient(180deg, var(--bg), var(--bg2));
-  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    linear-gradient(180deg, #d7dce2 0%, #c8ced6 45%, #dfe3e8 100%);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
   overflow-y:auto;
 }
 
-/* ===== Área principal ===== */
+/* Safe area + spacing */
 .app-main{
-  padding: 14px;
-  max-width: 980px;
-  margin: 0 auto;
-  padding-bottom: calc(96px + env(safe-area-inset-bottom));
+  padding: 12px;
+  padding-bottom: calc(92px + env(safe-area-inset-bottom));
 }
 
 /* ===== Header ===== */
@@ -63,15 +51,15 @@ body{
   position: sticky;
   top: 0;
   z-index: 10;
+  padding: calc(10px + env(safe-area-inset-top)) 10px 10px 10px;
 
-  padding: calc(10px + env(safe-area-inset-top)) 12px 12px 12px;
+  background: rgba(235,238,242,0.92);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
 
-  background: linear-gradient(180deg, rgba(23,26,33,0.92), rgba(23,26,33,0.72));
-  border: 1px solid var(--border);
+  border: 1px solid rgba(120,130,145,0.28);
   border-radius: var(--radius);
-  box-shadow: var(--shadow-sm);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  box-shadow: var(--shadow2);
 }
 
 .header-top{ text-align:center; }
@@ -87,7 +75,7 @@ body{
   color: var(--muted);
 }
 
-/* ===== Tabs ===== */
+/* ===== Tabs (top) ===== */
 .tabs{
   margin-top: 12px;
   display:flex;
@@ -95,50 +83,51 @@ body{
 }
 .tabs button{
   flex:1;
-  padding: 10px 10px;
+  padding: 10px 8px;
   border-radius: 999px;
 
-  background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.03));
-  border: 1px solid var(--border);
-  color: rgba(255,255,255,0.84);
+  background: rgba(255,255,255,0.85);
+  border: 1px solid rgba(120,130,145,0.28);
+  color: rgba(35,40,46,0.88);
 
   font-weight: 900;
   font-size: 12px;
 
-  box-shadow: var(--bevel-out);
-  transition: transform 0.08s ease, filter 0.18s ease, border-color 0.18s ease;
+  transition: transform 0.08s ease, background 0.18s ease, border-color 0.18s ease;
 }
-.tabs button:hover{ filter: brightness(1.06); }
 .tabs button:active{ transform: translateY(1px); }
 .tabs button.active{
-  background: linear-gradient(180deg, rgba(59,130,246,0.22), rgba(34,211,238,0.10));
-  border-color: rgba(59,130,246,0.40);
-  color: rgba(255,255,255,0.95);
+  background: linear-gradient(180deg, rgba(54,215,255,0.35), rgba(42,168,255,0.20));
+  border-color: rgba(54,215,255,0.35);
+  color: var(--accent);
   box-shadow:
-    0 0 0 4px rgba(59,130,246,0.10),
-    0 14px 30px rgba(0,0,0,0.35);
+    0 0 0 4px rgba(54,215,255,0.10),
+    0 10px 22px rgba(0,0,0,0.25);
 }
 
 /* ===== Cards ===== */
 .card{
-  background: linear-gradient(180deg, rgba(27,31,40,0.95), rgba(20,24,33,0.95));
-  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.85);
+  border: 1px solid rgba(120,130,145,0.28);
   border-radius: var(--radius);
   padding: 14px;
   margin-top: 12px;
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
 }
 
 h2{
   margin: 0 0 10px 0;
   font-size: 16px;
-  color: rgba(255,255,255,0.95);
+  color: rgba(20,24,28,0.95);
 }
 h3{
   margin: 0 0 8px 0;
   font-size: 13px;
-  color: rgba(255,255,255,0.78);
+  color: rgba(60,70,80,0.85);
 }
+
 .hint{
   margin: 6px 0 0 0;
   font-size: 12px;
@@ -146,7 +135,7 @@ h3{
   color: var(--muted);
 }
 
-/* ===== Grid / Rows ===== */
+/* ===== Form grid ===== */
 .grid{
   display:grid;
   grid-template-columns: 1fr 1fr;
@@ -154,66 +143,221 @@ h3{
 }
 .span-2{ grid-column: 1 / -1; }
 
-.row{ display:flex; gap: 10px; }
-.row.space{ align-items:center; justify-content:space-between; flex-wrap: wrap; }
-.row.space h2{ margin:0; }
-
-/* ===== Campos ===== */
-.field{ display:flex; flex-direction: column; gap: 6px; min-width: 0; }
-.field label{
-  font-size: 12px;
-  font-weight: 900;
-  color: rgba(255,255,255,0.72);
-  padding-left: 4px;
-}
-
+/* ===== Inputs / Selects / Textarea ===== */
 input, select, textarea{
   width:100%;
   padding: 12px 12px;
-  border-radius: 14px;
+  border-radius: 16px;
 
-  background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(0,0,0,0.22));
-  border: 1px solid var(--border2);
-  color: rgba(255,255,255,0.92);
+  background: rgba(255,255,255,0.95);
+  border: 1px solid rgba(120,130,145,0.28);
+  color: rgba(20,24,28,0.95);
 
-  box-shadow: var(--bevel-in);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.06),
+    inset 0 -1px 0 rgba(0,0,0,0.35);
 
   font-size: 16px;
   outline: none;
 
-  transition: border-color 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
 }
 
 textarea{ min-height: 88px; resize: vertical; }
 
 input:focus, select:focus, textarea:focus{
-  border-color: rgba(59,130,246,0.45);
+  border-color: rgba(54,215,255,0.45);
   box-shadow:
-    0 0 0 4px rgba(59,130,246,0.12),
-    var(--bevel-in);
+    0 0 0 4px rgba(54,215,255,0.12),
+    inset 0 1px 0 rgba(255,255,255,0.06),
+    inset 0 -1px 0 rgba(0,0,0,0.35);
 }
 
+/* readonly fields slightly different */
 input[readonly]{
-  background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(0,0,0,0.18));
-  opacity: 0.98;
+  background: rgba(255,255,255,0.05);
 }
 
-/* Evita sobreposição em iOS (date/time) */
-input[type="date"], input[type="time"]{
-  min-width: 0 !important;
-  min-inline-size: 0 !important;
-  max-width: 100%;
-  max-inline-size: 100%;
+/* ===== Labels above fields ===== */
+.field{
+  display:flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.field label{
+  font-size: 12px;
+  font-weight: 900;
+  color: rgba(255,255,255,0.68);
+  padding-left: 4px;
+}
+.field.span-2{ grid-column: 1 / -1; }
+
+/* ===== Buttons ===== */
+button{
+  width:100%;
+  padding: 12px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.12);
+
+  background: rgba(255,255,255,0.92);
+  color: rgba(20,24,28,0.95);
+
+  font-weight: 900;
+  font-size: 16px;
+
+  box-shadow: 0 14px 30px rgba(0,0,0,0.30);
+  transition: transform 0.08s ease, background 0.18s ease, border-color 0.18s ease;
+}
+button:active{ transform: translateY(1px); }
+
+button.primary{
+  background: linear-gradient(180deg, rgba(54,215,255,0.25), rgba(42,168,255,0.12));
+  border-color: rgba(54,215,255,0.35);
+  color: var(--accent);
+}
+button.ghost{
+  background: rgba(255,255,255,0.05);
+  border-color: rgba(255,255,255,0.10);
+  color: rgba(255,255,255,0.86);
+}
+.btn-green{
+  background: linear-gradient(180deg, rgba(34,197,94,0.26), rgba(34,197,94,0.12));
+  border-color: rgba(34,197,94,0.35);
+}
+.btn-red{
+  background: linear-gradient(180deg, rgba(239,68,68,0.26), rgba(239,68,68,0.12));
+  border-color: rgba(239,68,68,0.35);
 }
 
-/* ===== Select com setinha discreta ===== */
+/* ===== Rows ===== */
+.row{ display:flex; gap: 10px; }
+.row.space{ align-items:center; justify-content:space-between; }
+.row.space h2{ margin:0; }
+.row .ghost{ width:auto; }
+
+/* ===== Lists (History / UA) ===== */
+.list{ list-style:none; padding:0; margin:0; }
+.list li{
+  padding: 14px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.10);
+}
+.list li:last-child{ border-bottom:none; }
+
+.cardline{
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.4;
+  color: rgba(255,255,255,0.88);
+  margin-bottom: 6px;
+}
+.cardline strong{
+  color: var(--accent);
+  margin-right: 6px;
+}
+
+.actions{
+  display:flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+.actions button{
+  width:auto;
+  padding: 10px 12px;
+  font-size: 12px;
+  border-radius: 999px;
+}
+
+/* ===== Operation message ===== */
+.op-msg{
+  margin-top: 10px;
+  padding: 12px;
+  border-radius: 18px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.85);
+  color: rgba(255,255,255,0.90);
+  font-weight: 900;
+  text-align:center;
+  font-size: 13px;
+  box-shadow: 0 14px 30px rgba(0,0,0,0.22);
+}
+
+/* ===== Divider / Version box ===== */
+.divider{
+  margin: 16px 0;
+  height: 1px;
+  background: rgba(255,255,255,0.10);
+}
+.version-box{
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 18px;
+  padding: 12px;
+  background: rgba(255,255,255,0.05);
+  font-weight: 900;
+}
+.list.compact li{ padding: 8px 0; font-size: 12px; }
+
+/* ===== Modal (Edit) ===== */
+.modal-overlay{
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(0,0,0,0.45);
+  display:flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 12px;
+  padding-bottom: calc(12px + env(safe-area-inset-bottom));
+}
+@media (min-width:720px){
+  .modal-overlay{ align-items:center; }
+}
+.modal-card{
+  width: min(720px, 100%);
+  background: rgba(255,255,255,0.92);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 26px;
+  box-shadow: var(--shadow);
+  padding: 14px;
+  max-height: 86vh;
+  overflow: auto;
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+}
+.modal-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap: 10px;
+}
+.modal-header h2{ margin:0; font-size: 16px; }
+.icon-btn{
+  width:auto;
+  padding: 10px 12px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.85);
+  border: 1px solid rgba(255,255,255,0.12);
+  color: rgba(255,255,255,0.90);
+  font-weight: 900;
+}
+.modal-sub{
+  margin-top: 10px;
+  padding: 12px;
+  border-radius: 18px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(0,0,0,0.18);
+  color: rgba(255,255,255,0.70);
+  font-weight: 900;
+  font-size: 12px;
+}
+
+/* ===== Select: indicador no desktop (não atrapalha roleta no celular) ===== */
 select{
   -webkit-appearance: none;
   appearance: none;
   padding-right: 40px;
   background-image:
-    linear-gradient(45deg, transparent 50%, rgba(34,211,238,0.95) 50%),
-    linear-gradient(135deg, rgba(34,211,238,0.95) 50%, transparent 50%);
+    linear-gradient(45deg, transparent 50%, rgba(54,215,255,0.90) 50%),
+    linear-gradient(135deg, rgba(54,215,255,0.90) 50%, transparent 50%);
   background-position:
     calc(100% - 18px) 50%,
     calc(100% - 12px) 50%;
@@ -222,178 +366,287 @@ select{
 }
 select::-ms-expand{ display:none; }
 
-/* ===== Botões (cara de botão) ===== */
-button{
-  width:100%;
-  padding: 12px 12px;
-  border-radius: 14px;
-  border: 1px solid var(--border);
+/* Nº automático (readonly) */
+#f_num[readonly]{ opacity: 0.98; }
 
-  background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(0,0,0,0.25));
-  color: rgba(255,255,255,0.94);
 
-  font-weight: 950;
+/* ===== Ajuste layout Inicio / Tempo ===== */
+#f_inicio,
+#f_tempo{
+  min-width: 0;
+}
+
+/* garante que os dois ocupem exatamente 1 coluna cada */
+.field:not(.span-2){
+  min-width: 0;
+}
+
+
+/* ===== Ajuste filtros Histórico ===== */
+#tab-history .grid{
+  grid-template-columns: 1fr 1fr;
+}
+
+#filterDate,
+#filterUA{
+  min-width: 0;
+}
+
+
+/* ===== Fix real de sobreposição (v2.1) ===== */
+/* Inputs de data/hora em iOS às vezes têm largura mínima grande. Forçamos a encolher. */
+input[type="date"], input[type="time"]{
+  min-width: 0 !important;
+  min-inline-size: 0 !important;
+  max-width: 100%;
+  max-inline-size: 100%;
+}
+
+/* Deixa o INÍCIO um pouco menor pra ficar bem alinhado com TEMPO */
+#f_inicio{
   font-size: 15px;
-
-  box-shadow:
-    0 10px 22px rgba(0,0,0,0.40),
-    inset 0 1px 0 rgba(255,255,255,0.10);
-
-  transition: transform 0.08s ease, filter 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
-}
-button:hover{ filter: brightness(1.06); }
-button:active{
-  transform: translateY(1px);
-  box-shadow:
-    0 6px 16px rgba(0,0,0,0.38),
-    inset 0 1px 0 rgba(255,255,255,0.08);
-}
-button:disabled{ opacity: 0.55; filter: saturate(0.7); }
-
-/* Variantes */
-button.primary{
-  border-color: rgba(59,130,246,0.45);
-  background: linear-gradient(180deg, rgba(59,130,246,0.55), rgba(37,99,235,0.25));
-}
-button.ghost{
-  background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(0,0,0,0.22));
-  border-color: var(--border2);
-  color: rgba(255,255,255,0.88);
 }
 
-/* Botões específicos do app */
-.btn-green{
-  border-color: rgba(34,197,94,0.45);
-  background: linear-gradient(180deg, rgba(34,197,94,0.55), rgba(22,163,74,0.22));
-}
-.btn-red{
-  border-color: rgba(239,68,68,0.45);
-  background: linear-gradient(180deg, rgba(239,68,68,0.55), rgba(220,38,38,0.22));
+/* Ajuste fino das colunas para caber melhor no mobile */
+#tab-new .grid{
+  grid-template-columns: 0.92fr 1.08fr;
 }
 
-/* histórico: botão excluir usa class "danger" no HTML */
-.danger{
-  border-color: rgba(239,68,68,0.45) !important;
-  background: linear-gradient(180deg, rgba(239,68,68,0.55), rgba(220,38,38,0.22)) !important;
+#tab-history .grid{
+  grid-template-columns: 0.88fr 1.12fr;
 }
 
-/* Ações menores no histórico */
-.actions{
-  display:flex;
-  gap: 10px;
-  margin-top: 10px;
-  flex-wrap: wrap;
-}
-.actions button{
-  width:auto;
-  padding: 10px 12px;
-  font-size: 12px;
-  border-radius: 12px;
+/* Garante que cada bloco no grid possa encolher */
+#tab-new .grid > *,
+#tab-history .grid > *{
+  min-width: 0;
+  min-inline-size: 0;
 }
 
-/* ===== Lista / Itens ===== */
-.list{ list-style:none; padding:0; margin:0; }
-.list li{
-  padding: 14px 0;
-  border-bottom: 1px solid rgba(255,255,255,0.08);
-}
-.list li:last-child{ border-bottom:none; }
 
-.cardline{
-  font-size: 15px;
-  font-weight: 800;
-  line-height: 1.4;
-  color: rgba(255,255,255,0.90);
-  margin-bottom: 6px;
-}
-.cardline strong{
-  color: rgba(34,211,238,0.95);
-  margin-right: 6px;
+/* ===== Fix sobreposição definitivo (v15) ===== */
+#tab-new .grid,
+#tab-history .grid{
+  grid-template-columns: minmax(0,1fr) minmax(0,1fr);
 }
 
-/* ===== Mensagem de operação ===== */
-.op-msg{
-  margin-top: 10px;
-  padding: 12px;
-  border-radius: 14px;
-  border: 1px solid var(--border);
-  background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(0,0,0,0.22));
-  color: rgba(255,255,255,0.92);
-  font-weight: 900;
-  text-align:center;
-  font-size: 13px;
-  box-shadow: var(--shadow-sm);
+/* cada item do grid pode encolher */
+#tab-new .grid > *,
+#tab-history .grid > *{
+  min-width: 0 !important;
+  min-inline-size: 0 !important;
+  overflow: hidden;
 }
 
-/* ===== Divisor / versão ===== */
-.divider{ margin: 16px 0; height: 1px; background: rgba(255,255,255,0.10); }
-.version-box{
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 12px;
-  background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(0,0,0,0.18));
-  font-weight: 900;
-}
-.list.compact li{ padding: 8px 0; font-size: 12px; }
-
-/* ===== Modal ===== */
-.modal-overlay{
-  position: fixed;
-  inset: 0;
-  z-index: 9999;
-  background: rgba(0,0,0,0.60);
-  display:flex;
-  align-items: flex-end;
-  justify-content: center;
-  padding: 12px;
-  padding-bottom: calc(12px + env(safe-area-inset-bottom));
-}
-@media (min-width:720px){ .modal-overlay{ align-items:center; } }
-.modal-card{
-  width: min(720px, 100%);
-  background: linear-gradient(180deg, rgba(27,31,40,0.98), rgba(20,24,33,0.98));
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  box-shadow: var(--shadow-lg);
-  padding: 14px;
-  max-height: 86vh;
-  overflow: auto;
-}
-.modal-header{ display:flex; align-items:center; justify-content:space-between; gap: 10px; }
-.modal-header h2{ margin:0; font-size: 16px; }
-.icon-btn{
-  width:auto;
-  padding: 10px 12px;
-  border-radius: 12px;
-  background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(0,0,0,0.22));
-  border: 1px solid var(--border);
-  color: rgba(255,255,255,0.92);
-  font-weight: 950;
-}
-.modal-sub{
-  margin-top: 10px;
-  padding: 12px;
-  border-radius: 14px;
-  border: 1px solid var(--border2);
-  background: rgba(0,0,0,0.20);
-  color: rgba(255,255,255,0.75);
-  font-weight: 900;
-  font-size: 12px;
+/* inputs/selects sempre respeitam a coluna */
+#tab-new input, #tab-new select, #tab-new textarea,
+#tab-history input, #tab-history select{
+  width: 100%;
+  min-width: 0 !important;
+  min-inline-size: 0 !important;
+  display: block;
 }
 
-/* ===== Responsivo: telas muito estreitas ===== */
+/* fallback em telas muito estreitas: não deixa sobrepor, empilha */
 @media (max-width: 380px){
-  .grid{ grid-template-columns: 1fr; }
-  .row{ flex-direction: column; }
+  #tab-new .grid,
+  #tab-history .grid{
+    grid-template-columns: 1fr;
+  }
 }
 
-/* ===== Extras: melhor toque no iOS ===== */
-button, input, select, textarea{ -webkit-tap-highlight-color: transparent; }
+
+/* ===== Ajuste: label do Início não cortar (v16) ===== */
+#tab-new .grid > *{
+  overflow: visible !important; /* evita cortar o texto do label */
+}
+
+.field label{
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  line-height: 1.15;
+}
+
+/* mantém o campo Início com a mesma largura de um campo 1 coluna (como Nº) */
+#f_inicio{ width:100%; }
 
 
-/* ===== Ajuste: Total voado hoje maior (v32) ===== */
-#dayTotal{
+/* ===== Fix: Início e Tempo não sobrepor + centralizar valores (v17) ===== */
+#tab-new .grid{
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+}
+
+/* garante que os dois campos fiquem em colunas separadas */
+#f_inicio{ grid-column: 1 / span 1; }
+#f_tempo{ grid-column: 2 / span 1; }
+
+/* força encolher e ocupar 100% da coluna */
+#f_inicio, #f_tempo{
+  width: 100% !important;
+  min-width: 0 !important;
+  min-inline-size: 0 !important;
+  display: block;
+}
+
+/* centraliza os valores dentro dos campos */
+#f_inicio, #f_tempo{
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+
+/* ===== CORREÇÃO REAL SOBREPOSIÇÃO INÍCIO / TEMPO (v18) ===== */
+
+/* Reset completo da grid do formulário */
+#tab-new .grid {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 12px !important;
+}
+
+/* Remove QUALQUER posicionamento anterior */
+#tab-new .grid > * {
+  position: relative !important;
+  float: none !important;
+  clear: none !important;
+}
+
+/* Garante que os dois campos fiquem em colunas separadas */
+#tab-new .field:has(#f_inicio) {
+  grid-column: 1 !important;
+}
+
+#tab-new .field:has(#f_tempo) {
+  grid-column: 2 !important;
+}
+
+/* Garante que ambos respeitem largura total da coluna */
+#f_inicio,
+#f_tempo {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+}
+
+/* Centraliza valores */
+#f_inicio,
+#f_tempo {
+  text-align: center !important;
+}
+
+/* Segurança extra para telas pequenas */
+@media (max-width: 420px) {
+  #tab-new .grid {
+    grid-template-columns: 1fr 1fr !important;
+  }
+}
+
+
+/* ===== PDF Preview ===== */
+.pdf-card{
+  width: min(900px, 96vw);
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.pdf-frame-wrap{
+  flex: 1;
+  min-height: 55vh;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+#pdfFrame{
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #fff;
+}
+
+
+/* ===== Code Picker (quase tela cheia) ===== */
+#codePickerModal .modal-card{
+  width: 100%;
+  max-width: 720px;
+  height: 86vh;
+  max-height: 86vh;
+}
+
+/* Botões/itens do picker: 1 linha, um embaixo do outro */
+#codePickerList{ padding: 0; margin: 0; list-style: none; }
+#codePickerList li{ padding: 0; border-bottom: 1px solid rgba(255,255,255,0.10); }
+#codePickerList li:last-child{ border-bottom: none; }
+
+.picker-item{
+  width: 100%;
+  text-align: left;
+  border-radius: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  padding: 14px 6px;
   font-size: 16px;
   font-weight: 900;
-  letter-spacing: 0.2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.picker-item:active{ transform: none; opacity: 0.85; }
+
+/* v26 - day total bigger */
+#dayTotal{font-size:16px !important; font-weight:900; line-height:1.35;}
+
+
+/* UA - fonte um pouco maior nos resultados */
+#tab-uas .cardline{font-size:16px;}
+#tab-uas .list li{padding:16px 0;}
+
+
+/* botão excluir */
+button.danger{
+  background: linear-gradient(180deg, rgba(239,68,68,0.30), rgba(239,68,68,0.14));
+  border-color: rgba(239,68,68,0.45);
+  color: #ffd5d5;
+}
+
+
+/* ===== Bottom tab bar (app-like) v33 ===== */
+.app-header{
+  position: static;
+  padding-bottom: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.header-top{
+  background: rgba(255,255,255,0.78);
+  border: 1px solid rgba(120,130,145,0.22);
+  border-radius: var(--radius);
+  padding: 10px;
+  box-shadow: var(--shadow2);
+}
+.tabs{
+  position: fixed;
+  left: 10px;
+  right: 10px;
+  bottom: calc(10px + env(safe-area-inset-bottom));
+  z-index: 999;
+  margin-top: 0;
+  background: rgba(245,247,250,0.95);
+  border: 1px solid rgba(120,130,145,0.25);
+  border-radius: 18px;
+  padding: 8px;
+  box-shadow: 0 10px 24px rgba(80,90,105,0.20);
+}
+.app-main{
+  padding-bottom: calc(120px + env(safe-area-inset-bottom));
+}
+.tabs button{
+  border-radius: 14px;
 }
