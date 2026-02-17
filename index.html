@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
-  <title>Relatório de Voo</title>
+  <title>RELATÓRIO DE VOO</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <link rel="manifest" href="manifest.json" />
   <link rel="stylesheet" href="style.css?v=32" />
@@ -16,19 +16,7 @@
       <div class="header-top">
         <h1>RELATÓRIO DE VOO</h1>
 </div>
-
-      <div class="tabs" role="tablist" aria-label="Navegação">
-        <button id="tabBtnNew" class="active" type="button" onclick="showTab('new')">
-          <span class="tab-label">Novo</span>
-        </button>
-        <button id="tabBtnHistory" type="button" onclick="showTab('history')">
-          <span class="tab-label">Histórico</span>
-        </button>
-        <button id="tabBtnUAs" type="button" onclick="showTab('uas')">
-          <span class="tab-label">Registro</span>
-        </button>
-      </div>
-    </header>
+</header>
 
     <!-- ======= TAB: NOVO ======= -->
     <section id="tab-new" class="tab-content">
@@ -124,17 +112,17 @@
     <!-- ======= TAB: HISTÓRICO ======= -->
     <section id="tab-history" class="tab-content" style="display:none;">
       <section class="card">
-        
 
 
-        <div class="row" style="margin-top:0;">
+        <div class="row" style="margin-top:8px;">
           <button type="button" class="ghost" onclick="syncPull()">Atualizar da planilha</button>
           <button type="button" onclick="syncPush()">Enviar para planilha</button>
         </div>
         <div id="syncStatus" class="hint" style="margin-top:6px;"></div>
 
         
-<div class="row space">
+
+        <div class="row space">
           <h2>Histórico</h2>
           <button class="ghost" type="button" onclick="exportTextAll()">Copiar tudo</button>
           <button class="ghost" type="button" onclick="exportPdfDay()">Exportar PDF (dia)</button>
@@ -293,6 +281,20 @@
       <ul id="codePickerList" class="list" style="margin-top:10px;"></ul>
     </div>
   </div>
+
+  <nav class="bottom-nav" role="navigation" aria-label="Navegação inferior">
+    <div class="tabs bottom-tabs" role="tablist" aria-label="Navegação">
+        <button id="tabBtnNew" class="active" type="button" onclick="showTab('new')">
+          <span class="tab-label">Novo</span>
+        </button>
+        <button id="tabBtnHistory" type="button" onclick="showTab('history')">
+          <span class="tab-label">Histórico</span>
+        </button>
+        <button id="tabBtnUAs" type="button" onclick="showTab('uas')">
+          <span class="tab-label">Registro</span>
+        </button>
+      </div>
+  </nav>
 
 </body>
 </html>

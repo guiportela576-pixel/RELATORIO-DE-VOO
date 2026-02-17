@@ -55,7 +55,7 @@ body{
   padding: 14px;
   max-width: 980px;
   margin: 0 auto;
-  padding-bottom: calc(132px + env(safe-area-inset-bottom));
+  padding-bottom: calc(96px + env(safe-area-inset-bottom));
 }
 
 /* ===== Header ===== */
@@ -77,9 +77,8 @@ body{
 .header-top{ text-align:center; }
 .header-top h1{
   margin:0;
-  font-size: clamp(22px, 5.2vw, 30px);
-  letter-spacing: 0.6px;
-  font-weight: 1000;
+  font-size: 16px;
+  letter-spacing: 0.2px;
 }
 .subhead{
   margin-top: 6px;
@@ -90,30 +89,14 @@ body{
 
 /* ===== Tabs ===== */
 .tabs{
-  position: fixed;
-  left: 50%;
-  transform: translateX(-50%);
-  bottom: 0;
-  width: min(980px, 100%);
-  padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+  margin-top: 12px;
   display:flex;
   gap: 10px;
-  margin-top: 0;
-
-  background: linear-gradient(180deg, rgba(23,26,33,0.92), rgba(23,26,33,0.78));
-  border-top: 1px solid var(--border);
-  border-left: 1px solid var(--border);
-  border-right: 1px solid var(--border);
-  border-radius: 18px 18px 0 0;
-  box-shadow: var(--shadow-sm);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  z-index: 50;
 }
 .tabs button{
   flex:1;
   padding: 10px 10px;
-  border-radius: 14px;
+  border-radius: 999px;
 
   background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.03));
   border: 1px solid var(--border);
@@ -163,12 +146,6 @@ h3{
   color: var(--muted);
 }
 
-
-#dayTotal{
-  font-size: 16px;
-  font-weight: 950;
-  letter-spacing: 0.2px;
-}
 /* ===== Grid / Rows ===== */
 .grid{
   display:grid;
@@ -413,5 +390,38 @@ button.ghost{
 /* ===== Extras: melhor toque no iOS ===== */
 button, input, select, textarea{ -webkit-tap-highlight-color: transparent; }
 
-/* v32 tweaks */
-.subhead{ display:none !important; }
+
+/* ===== v32 ajustes solicitados ===== */
+
+/* Cabeçalho: só título, maior e largura total */
+.header-top h1{
+  font-size: 22px;
+  font-weight: 1000;
+  letter-spacing: 0.6px;
+  width: 100%;
+}
+
+/* Total do dia maior */
+#dayTotal{
+  font-size: 16px !important;
+  font-weight: 950 !important;
+}
+
+/* Navegação inferior fixa (não flutuante) */
+.bottom-nav{
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 999;
+  padding: 10px 12px calc(10px + env(safe-area-inset-bottom)) 12px;
+  background: linear-gradient(180deg, rgba(27,31,40,0.92), rgba(20,24,33,0.98));
+  border-top: 1px solid rgba(255,255,255,0.10);
+  box-shadow: 0 -12px 28px rgba(0,0,0,0.35);
+}
+
+/* Tabs dentro da barra inferior */
+.tabs.bottom-tabs{
+  margin-top: 0;
+}
+
