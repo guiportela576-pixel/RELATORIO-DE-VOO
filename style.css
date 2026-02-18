@@ -263,12 +263,20 @@ button.ghost{
 
 /* Botões específicos do app */
 .btn-green{
-  border-color: rgba(34,197,94,0.45);
-  background: linear-gradient(180deg, rgba(34,197,94,0.55), rgba(22,163,74,0.22));
+  border-color: rgba(34,197,94,0.78);
+  background: linear-gradient(180deg, rgba(34,197,94,0.92), rgba(22,163,74,0.38));
+  box-shadow:
+    0 14px 28px rgba(0,0,0,0.42),
+    0 0 0 1px rgba(34,197,94,0.22) inset,
+    0 0 22px rgba(34,197,94,0.22);
 }
 .btn-red{
-  border-color: rgba(239,68,68,0.45);
-  background: linear-gradient(180deg, rgba(239,68,68,0.55), rgba(220,38,38,0.22));
+  border-color: rgba(239,68,68,0.78);
+  background: linear-gradient(180deg, rgba(239,68,68,0.92), rgba(220,38,38,0.38));
+  box-shadow:
+    0 14px 28px rgba(0,0,0,0.42),
+    0 0 0 1px rgba(239,68,68,0.22) inset,
+    0 0 22px rgba(239,68,68,0.22);
 }
 
 /* histórico: botão excluir usa class "danger" no HTML */
@@ -337,6 +345,32 @@ button.ghost{
 .list.compact li{ padding: 8px 0; font-size: 12px; }
 
 /* ===== Modal ===== */
+
+.fieldLabel{
+  margin: 10px 0 6px;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  color: rgba(255,255,255,0.72);
+  text-transform: uppercase;
+}
+
+/* ===== Edit modal: manter organização/labels dentro de cada campo ===== */
+.modal-overlay .editFieldWrap{
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 10px 0;
+  min-width: 0;
+}
+.modal-overlay .editFieldLabel{
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  color: rgba(255,255,255,0.72);
+  text-transform: uppercase;
+}
+
 .modal-overlay{
   position: fixed;
   inset: 0;
@@ -423,5 +457,55 @@ button, input, select, textarea{ -webkit-tap-highlight-color: transparent; }
 /* Tabs dentro da barra inferior */
 .tabs.bottom-tabs{
   margin-top: 0;
+}
+
+
+/* === Brightness boost: Iniciar/Encerrar voo buttons (added safely) === */
+/* Vibrante/aceso/intenso — sem alterar layout/estrutura */
+.btn-green,
+#btnStart,
+button.btn-green,
+button#btnStart{
+  background: linear-gradient(180deg, #2CFF4A 0%, #00E65A 55%, #00C94D 100%) !important;
+  border-color: rgba(44,255,74,0.95) !important;
+  color: #ffffff !important;
+  text-shadow: 0 0 6px rgba(255,255,255,0.55) !important;
+  box-shadow:
+    0 0 0 1px rgba(44,255,74,0.40) inset,
+    0 0 10px rgba(44,255,74,0.70),
+    0 0 18px rgba(44,255,74,0.50),
+    0 10px 26px rgba(0,0,0,0.42) !important;
+  filter: saturate(1.45) brightness(1.18) contrast(1.06) !important;
+}
+
+.btn-red,
+#btnEnd,
+button.btn-red,
+button#btnEnd{
+  background: linear-gradient(180deg, #FF4B4B 0%, #FF0000 55%, #D80000 100%) !important;
+  border-color: rgba(255,75,75,0.95) !important;
+  color: #ffffff !important;
+  text-shadow: 0 0 6px rgba(255,255,255,0.55) !important;
+  box-shadow:
+    0 0 0 1px rgba(255,75,75,0.40) inset,
+    0 0 10px rgba(255,75,75,0.70),
+    0 0 18px rgba(255,75,75,0.50),
+    0 10px 26px rgba(0,0,0,0.42) !important;
+  filter: saturate(1.45) brightness(1.18) contrast(1.06) !important;
+}
+
+.btn-green:hover,
+#btnStart:hover,
+.btn-red:hover,
+#btnEnd:hover{
+  filter: saturate(1.55) brightness(1.24) contrast(1.08) !important;
+}
+
+.btn-green:active,
+#btnStart:active,
+.btn-red:active,
+#btnEnd:active{
+  transform: translateY(1px);
+  filter: saturate(1.40) brightness(1.10) !important;
 }
 

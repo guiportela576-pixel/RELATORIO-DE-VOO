@@ -1,5 +1,5 @@
 // Relatório de Voo (PWA) - armazenamento local
-const APP_VERSION = "1.1.4 (autosync)";
+const APP_VERSION = "1.2.3 (autosync)";
 const VERSION_HISTORY = [
   "1.2.3 - Códigos de operação pré-carregados (não sobrescreve dados existentes)",
   "1.2.2 - Correção: botões/tabs voltaram a funcionar (erro JS) + VOO decimal no teclado",
@@ -78,6 +78,80 @@ function saveAll(){
   localStorage.setItem("pilotNames", JSON.stringify(Array.isArray(names) ? names : []));
   localStorage.setItem("defaultName", String(defaultName || ""));
 }
+
+
+/* ===== Rascunho (Novo Voo) — evita perder campos ao bloquear tela (Android) ===== */
+const DRAFT_KEY = "draftNewFlight";
+
+function readDraft(){
+  try{
+    const raw = localStorage.getItem(DRAFT_KEY);
+    return raw ? JSON.parse(raw) : null;
+  }catch(_){
+    return null;
+  }
+}
+
+function writeDraft(obj){
+  try{
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(obj || {}));
+  }catch(_){}
+}
+
+function clearDraft(){
+  try{ localStorage.removeItem(DRAFT_KEY); }catch(_){}
+}
+
+function captureDraftFromForm(){
+  const ids = ["f_nome","f_missao","f_codigo","f_voo","f_inicio","f_tempo","f_ua","f_ciclos","f_nbat","f_carga_ini","f_carga_fim","f_obs"];
+  const d = {};
+  ids.forEach(id=>{
+    const el = document.getElementById(id);
+    if (!el) return;
+    d[id] = String(el.value ?? "");
+  });
+  const dateEl = document.getElementById("f_date");
+  if (dateEl) d.__date = String(dateEl.value || "");
+  writeDraft(d);
+}
+
+function restoreDraftToForm(){
+  const d = readDraft();
+  if (!d) return;
+
+  const dateEl = document.getElementById("f_date");
+  const currentDate = dateEl ? String(dateEl.value || "") : "";
+  if (d.__date && currentDate && d.__date !== currentDate) return;
+
+  const ids = ["f_nome","f_missao","f_codigo","f_voo","f_inicio","f_tempo","f_ua","f_ciclos","f_nbat","f_carga_ini","f_carga_fim","f_obs"];
+  ids.forEach(id=>{
+    if (!(id in d)) return;
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (String(el.value || "") !== "") return;
+    el.value = String(d[id] ?? "");
+  });
+}
+
+function attachDraftListeners(){
+  const ids = ["f_nome","f_missao","f_codigo","f_voo","f_inicio","f_tempo","f_ua","f_ciclos","f_nbat","f_carga_ini","f_carga_fim","f_obs"];
+  ids.forEach(id=>{
+    const el = document.getElementById(id);
+    if (!el) return;
+    const evt = (el.tagName === "SELECT") ? "change" : "input";
+    el.addEventListener(evt, captureDraftFromForm);
+  });
+
+  document.addEventListener("visibilitychange", ()=>{
+    if (!document.hidden){
+      restoreDraftToForm();
+    }else{
+      captureDraftFromForm();
+    }
+  });
+  window.addEventListener("pagehide", captureDraftFromForm);
+}
+
 
 function pad2(n){ return String(n).padStart(2, "0"); }
 function todayISO(){
@@ -467,21 +541,6 @@ function endFlight(){
   if (btnStart) btnStart.disabled = false;
   if (btnEnd) btnEnd.disabled = true;
 
-  // Força separador decimal com ponto no campo VOO (aceita também vírgula e converte)
-  function bindDotDecimal(id){
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.addEventListener("input", () => {
-      let v = String(el.value || "");
-      v = v.replace(/,/g, ".");
-      v = v.replace(/[^0-9.]/g, "");
-      const parts = v.split(".");
-      if (parts.length > 2){
-        v = parts[0] + "." + parts.slice(1).join("");
-      }
-      el.value = v;
-    });
-  }
   bindDotDecimal("f_voo");
   bindDotDecimal("e_voo");
 
@@ -641,7 +700,7 @@ function clearForm(){
     if (defaultName && names.includes(defaultName)) nameSel.value = defaultName;
     else nameSel.value = "";
   }
-
+  clearDraft();
 }
 
 function formatForCopy(e){
@@ -970,7 +1029,9 @@ function getAppState(){
     entries: Array.isArray(entries) ? entries : [],
     uas: Array.isArray(uas) ? uas : [],
     defaultUA: String(defaultUA || ""),
-    opCodes: Array.isArray(opCodes) ? opCodes : []
+    opCodes: Array.isArray(opCodes) ? opCodes : [],
+    pilotNames: Array.isArray(names) ? names : [],
+    defaultName: String(defaultName || "")
   };
 }
 
@@ -980,10 +1041,17 @@ function applyAppState(state){
   uas = Array.isArray(state.uas) ? state.uas : [];
   defaultUA = String(state.defaultUA || "");
   opCodes = Array.isArray(state.opCodes) ? state.opCodes : [];
+  // Nomes (compatível com versões antigas: não apaga se não vier no payload)
+  if ("pilotNames" in state) names = Array.isArray(state.pilotNames) ? state.pilotNames : [];
+  if ("defaultName" in state) defaultName = String(state.defaultName || "");
   saveAll();
   ensureUASelects();
   ensureCodeSelects();
+  ensureNameSelects();
+  renderNameList();
   updateAutoNum();
+  restoreDraftToForm();
+  attachDraftListeners();
   renderHistory();
   renderUAs();
 }
@@ -1249,6 +1317,66 @@ function deleteUA(i){
 }
 
 /* ===== Modal Edit ===== */
+
+function ensureEditLabels(){
+  const map = [
+    ["e_num","Nº"],
+    ["e_missao","MISSÃO"],
+    ["e_codigo","CÓDIGO"],
+    ["e_voo","VOO (h)"],
+    ["e_inicio","INÍCIO"],
+    ["e_tempo","TEMPO (min)"],
+    ["e_ua","UA"],
+    ["e_ciclos","CICLOS"],
+    ["e_nbat","Nº BATERIA"],
+    ["e_carga_ini","CARGA INI (%)"],
+    ["e_carga_fim","CARGA FIM (%)"],
+    ["e_obs","OBSERVAÇÕES"]
+  ];
+
+  map.forEach(([id, label])=>{
+    const el = document.getElementById(id);
+    if (!el) return;
+
+    // Se já estiver organizado, só atualiza textos/atributos
+    const alreadyWrapped = el.parentElement && el.parentElement.classList && el.parentElement.classList.contains("editFieldWrap");
+    if (!alreadyWrapped){
+      const wrap = document.createElement("div");
+      wrap.className = "editFieldWrap";
+
+      // cria label acima do campo (igual ao formulário principal)
+      const lab = document.createElement("div");
+      lab.className = "editFieldLabel";
+      lab.textContent = label;
+
+      // remove labels antigos soltos (se existirem) para não bagunçar a ordem
+      const prev = el.previousElementSibling;
+      if (prev && prev.classList && prev.classList.contains("fieldLabel")) {
+        prev.remove();
+      }
+
+      // insere o wrapper no lugar do elemento e move o campo para dentro
+      if (el.parentNode){
+        el.parentNode.insertBefore(wrap, el);
+        wrap.appendChild(lab);
+        wrap.appendChild(el);
+      }
+    }else{
+      const lab = el.parentElement.querySelector(".editFieldLabel");
+      if (lab) lab.textContent = label;
+    }
+
+    // acessibilidade / dica
+    el.setAttribute("aria-label", label);
+    el.setAttribute("title", label);
+
+    // ajuda visual extra (especialmente em inputs)
+    if (el.tagName === "INPUT" || el.tagName === "TEXTAREA"){
+      if (!el.getAttribute("placeholder")) el.setAttribute("placeholder", label);
+    }
+  });
+}
+
 let editId = null;
 
 function openEditModal(id){
@@ -1258,6 +1386,7 @@ function openEditModal(id){
   editId = id;
   ensureUASelects();
   buildPickers();
+  ensureEditLabels();
 
   const f = e.fields || {};
   document.getElementById("modalSub").textContent =
@@ -1347,49 +1476,18 @@ function deleteEdit(){
     dEl.addEventListener("change", () => updateAutoNum());
   }
   updateAutoNum();
+  restoreDraftToForm();
+  attachDraftListeners();
   renderHistory();
   renderUAs();
+  ensureNameSelects();
 
   const btnEnd = document.getElementById("btnEnd");
   if (btnEnd) btnEnd.disabled = true;
 
-  // Força separador decimal com ponto no campo VOO (aceita também vírgula e converte)
-  function bindDotDecimal(id){
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.addEventListener('input', () => {
-      const v = String(el.value || '');
-      // troca vírgula por ponto e remove caracteres não permitidos
-      let out = v.replace(/,/g, '.').replace(/[^0-9.]/g, '');
-      // evita mais de um ponto
-      const parts = out.split('.');
-      if (parts.length > 2){
-        out = parts[0] + '.' + parts.slice(1).join('');
-      }
-      if (out !== v) el.value = out;
-    });
-  }
   bindDotDecimal('f_voo');
   bindDotDecimal('e_voo');
 
-  // Força separador decimal com ponto no campo VOO (aceita também vírgula e converte)
-  function bindDotDecimal(id){
-    const el = document.getElementById(id);
-    if (!el) return;
-    const fix = () => {
-      let v = String(el.value || '');
-      v = v.replace(/,/g, '.');
-      v = v.replace(/[^0-9.]/g, '');
-      // evita mais de um ponto
-      const parts = v.split('.');
-      if (parts.length > 2){
-        v = parts[0] + '.' + parts.slice(1).join('');
-      }
-      el.value = v;
-    };
-    el.addEventListener('input', fix);
-    el.addEventListener('blur', fix);
-  }
   bindDotDecimal('f_voo');
   bindDotDecimal('e_voo');
 
