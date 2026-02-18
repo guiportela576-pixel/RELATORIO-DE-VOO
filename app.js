@@ -103,6 +103,16 @@ function normalizeStr(s){
 function normalizeDecimalDots(s){
   return normalizeStr(s).replace(/,/g, '.').replace(/[^0-9.]/g, '');
 }
+
+function setElValue(el, v){
+  if (!el) return;
+  const val = String(v ?? "");
+  try{ el.value = val; }catch(e){}
+  try{ el.setAttribute("value", val); }catch(e){}
+  try{ el.dispatchEvent(new Event("input", { bubbles:true })); }catch(e){}
+  try{ el.dispatchEvent(new Event("change", { bubbles:true })); }catch(e){}
+}
+
 function showMsg(text){
   const el = document.getElementById("runMsg");
   if (!el) return;
@@ -428,10 +438,10 @@ function startFlight(){
   const tempo = document.getElementById("f_tempo");
 
   const hhmm = nowHHMM();
-  if (inicio) inicio.value = hhmm;
-  if (tempo) tempo.value = "";
+  if (inicio) setElValue(inicio, hhmm);
+  if (tempo) setElValue(tempo, "");
 
-  runStartMs = Date.now();
+runStartMs = Date.now();
   lastStartedAt = hhmm;
 
   const btnStart = document.getElementById("btnStart");
@@ -454,7 +464,7 @@ function endFlight(){
       return;
     }
     // mantém comportamento original: mínimo 1 minuto
-    if (tempo) tempo.value = "1";
+    if (tempo) setElValue(tempo, "1");
     alert("Você não iniciou o cronômetro. Vou preencher o tempo como 1 minuto (mínimo).");
     return;
   }
@@ -463,7 +473,7 @@ function endFlight(){
 
   // garante preenchimento
   if (tempo){
-    tempo.value = String(mins);
+    setElValue(tempo, String(mins));
   }
 
   runStartMs = null;
@@ -554,7 +564,7 @@ function saveEntry(){
   if (runStartMs){
     // se salvou sem encerrar, fecha automaticamente
     const mins = minutesBetween(runStartMs, Date.now());
-    document.getElementById("f_tempo").value = String(mins);
+    setElValue(document.getElementById("f_tempo"), String(mins));
     runStartMs = null;
     const btnStart = document.getElementById("btnStart");
     const btnEnd = document.getElementById("btnEnd");
