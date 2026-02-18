@@ -459,3 +459,43 @@ button, input, select, textarea{ -webkit-tap-highlight-color: transparent; }
   margin-top: 0;
 }
 
+
+/* === Brightness boost: Iniciar/Encerrar voo buttons (added safely) === */
+.btn-start,
+#btnStart,
+button.btn-start,
+button#btnStart,
+[data-action="start-flight"] {
+  background: linear-gradient(180deg, #00ff66 0%, #00d84f 100%) !important;
+  border-color: #00ff66 !important;
+  color: #ffffff !important;
+  box-shadow:
+    0 0 0 1px rgba(0,255,102,0.35) inset,
+    0 0 12px rgba(0,255,102,0.55),
+    0 6px 18px rgba(0,255,102,0.35) !important;
+  filter: saturate(1.25) brightness(1.12) !important;
+}
+
+.btn-end,
+#btnEnd,
+button.btn-end,
+button#btnEnd,
+[data-action="end-flight"] {
+  background: linear-gradient(180deg, #ff2b2b 0%, #e00000 100%) !important;
+  border-color: #ff2b2b !important;
+  color: #ffffff !important;
+  box-shadow:
+    0 0 0 1px rgba(255,43,43,0.35) inset,
+    0 0 12px rgba(255,43,43,0.55),
+    0 6px 18px rgba(255,43,43,0.35) !important;
+  filter: saturate(1.25) brightness(1.12) !important;
+}
+
+/* Active press feedback */
+.btn-start:active,
+#btnStart:active,
+.btn-end:active,
+#btnEnd:active {
+  transform: translateY(1px);
+  filter: saturate(1.35) brightness(1.0) !important;
+}
