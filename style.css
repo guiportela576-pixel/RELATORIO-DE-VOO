@@ -355,22 +355,6 @@ button.ghost{
   text-transform: uppercase;
 }
 
-/* ===== Edit modal: manter organização/labels dentro de cada campo ===== */
-.modal-overlay .editFieldWrap{
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin: 10px 0;
-  min-width: 0;
-}
-.modal-overlay .editFieldLabel{
-  font-size: 12px;
-  font-weight: 900;
-  letter-spacing: 0.06em;
-  color: rgba(255,255,255,0.72);
-  text-transform: uppercase;
-}
-
 .modal-overlay{
   position: fixed;
   inset: 0;

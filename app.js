@@ -1333,47 +1333,22 @@ function ensureEditLabels(){
     ["e_carga_fim","CARGA FIM (%)"],
     ["e_obs","OBSERVAÇÕES"]
   ];
-
   map.forEach(([id, label])=>{
     const el = document.getElementById(id);
-    if (!el) return;
+    if (!el || !el.parentNode) return;
 
-    // Se já estiver organizado, só atualiza textos/atributos
-    const alreadyWrapped = el.parentElement && el.parentElement.classList && el.parentElement.classList.contains("editFieldWrap");
-    if (!alreadyWrapped){
-      const wrap = document.createElement("div");
-      wrap.className = "editFieldWrap";
-
-      // cria label acima do campo (igual ao formulário principal)
-      const lab = document.createElement("div");
-      lab.className = "editFieldLabel";
-      lab.textContent = label;
-
-      // remove labels antigos soltos (se existirem) para não bagunçar a ordem
-      const prev = el.previousElementSibling;
-      if (prev && prev.classList && prev.classList.contains("fieldLabel")) {
-        prev.remove();
-      }
-
-      // insere o wrapper no lugar do elemento e move o campo para dentro
-      if (el.parentNode){
-        el.parentNode.insertBefore(wrap, el);
-        wrap.appendChild(lab);
-        wrap.appendChild(el);
-      }
+    const prev = el.previousElementSibling;
+    if (prev && prev.classList && prev.classList.contains("fieldLabel")){
+      prev.textContent = label;
     }else{
-      const lab = el.parentElement.querySelector(".editFieldLabel");
-      if (lab) lab.textContent = label;
+      const lab = document.createElement("div");
+      lab.className = "fieldLabel";
+      lab.textContent = label;
+      el.parentNode.insertBefore(lab, el);
     }
 
-    // acessibilidade / dica
     el.setAttribute("aria-label", label);
     el.setAttribute("title", label);
-
-    // ajuda visual extra (especialmente em inputs)
-    if (el.tagName === "INPUT" || el.tagName === "TEXTAREA"){
-      if (!el.getAttribute("placeholder")) el.setAttribute("placeholder", label);
-    }
   });
 }
 
