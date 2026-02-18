@@ -222,28 +222,71 @@
 
         <div class="modal-sub" id="modalSub">—</div>
 
-        <div class="grid" style="margin-top:10px;">
-          <input type="number" id="e_num" min="1" />
-          <input type="number" id="e_missao" inputmode="numeric" pattern="[0-9]*" min="1" placeholder="Ex: 1" />
+                <div class="grid" style="margin-top:10px;">
+          <div class="field">
+            <label for="e_num">Nº</label>
+            <input type="number" id="e_num" min="1" />
+          </div>
 
-          <select id="e_nome"></select>
+          <div class="field">
+            <label for="e_missao">Missão</label>
+            <input type="number" id="e_missao" inputmode="numeric" pattern="[0-9]*" min="1" placeholder="Ex: 1" />
+          </div>
 
+          <div class="field span-2">
+            <label for="e_nome">Nome</label>
+            <select id="e_nome"></select>
+          </div>
 
-          <select id="e_codigo"></select>
+          <div class="field span-2">
+            <label for="e_codigo">Código</label>
+            <select id="e_codigo"></select>
+          </div>
 
-          <input type="text" id="e_voo" inputmode="decimal" pattern="[0-9.,]*" placeholder="Ex: 1.1" lang="en-US" />
-          <input type="time" id="e_inicio" />
+          <div class="field">
+            <label for="e_voo">Voo</label>
+            <input type="text" id="e_voo" inputmode="decimal" pattern="[0-9.,]*" placeholder="Ex: 1.1" lang="en-US" />
+          </div>
 
-          <input type="number" id="e_tempo" min="1" />
-          <select id="e_ua"></select>
+          <div class="field">
+            <label for="e_inicio">Início</label>
+            <input type="time" id="e_inicio" />
+          </div>
 
-          <input type="number" id="e_ciclos" inputmode="numeric" pattern="[0-9]*" min="0" max="400" />
-          <input type="number" id="e_nbat" inputmode="numeric" pattern="[0-9]*" min="1" max="6" />
+          <div class="field">
+            <label for="e_tempo">Tempo (min)</label>
+            <input type="number" id="e_tempo" min="1" />
+          </div>
 
-          <select id="e_carga_ini"></select>
-          <select id="e_carga_fim" class="span-2"></select>
+          <div class="field">
+            <label for="e_ua">UA</label>
+            <select id="e_ua"></select>
+          </div>
 
-          <textarea id="e_obs" class="span-2"></textarea>
+          <div class="field">
+            <label for="e_ciclos">Ciclos</label>
+            <input type="number" id="e_ciclos" inputmode="numeric" pattern="[0-9]*" min="0" max="400" />
+          </div>
+
+          <div class="field">
+            <label for="e_nbat">Nº Bat</label>
+            <input type="number" id="e_nbat" inputmode="numeric" pattern="[0-9]*" min="1" max="6" />
+          </div>
+
+          <div class="field">
+            <label for="e_carga_ini">Carga inicial (%)</label>
+            <select id="e_carga_ini"></select>
+          </div>
+
+          <div class="field span-2">
+            <label for="e_carga_fim">Carga final (%)</label>
+            <select id="e_carga_fim" class="span-2"></select>
+          </div>
+
+          <div class="field span-2">
+            <label for="e_obs">Observação</label>
+            <textarea id="e_obs" class="span-2"></textarea>
+          </div>
         </div>
 
         <div class="row" style="margin-top:10px;">
