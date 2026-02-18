@@ -55,10 +55,7 @@
     <label for="f_carga_fim">Carga final (%)</label>
     <input type="number" id="f_carga_fim" inputmode="numeric" pattern="[0-9]*" min="0" max="100" />
   </div>
-<div class="field">
-    <label for="f_voo">Voo (opcional)</label>
-    <input type="text" id="f_voo" inputmode="decimal" pattern="[0-9.,]*" placeholder="Ex: 1.1" lang="en-US" />
-  </div>
+<div class="field" aria-hidden="true"></div>
 <div class="field span-2">
     <label for="f_codigo">Código da operação (opcional)</label>
     <input type="text" id="f_codigo" readonly placeholder="Toque para selecionar" onclick="openCodePicker()" />
@@ -83,7 +80,10 @@
 
     
 
-  
+  <div class="field span-2">
+    <label for="f_voo">Voo (opcional)</label>
+    <input type="text" id="f_voo" inputmode="decimal" pattern="[0-9.,]*" placeholder="Ex: 1.1" lang="en-US" />
+  </div>
 
   <div class="field span-2">
     <label for="f_nome">Nome</label>
