@@ -79,6 +79,80 @@ function saveAll(){
   localStorage.setItem("defaultName", String(defaultName || ""));
 }
 
+
+/* ===== Rascunho (Novo Voo) — evita perder campos ao bloquear tela (Android) ===== */
+const DRAFT_KEY = "draftNewFlight";
+
+function readDraft(){
+  try{
+    const raw = localStorage.getItem(DRAFT_KEY);
+    return raw ? JSON.parse(raw) : null;
+  }catch(_){
+    return null;
+  }
+}
+
+function writeDraft(obj){
+  try{
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(obj || {}));
+  }catch(_){}
+}
+
+function clearDraft(){
+  try{ localStorage.removeItem(DRAFT_KEY); }catch(_){}
+}
+
+function captureDraftFromForm(){
+  const ids = ["f_nome","f_missao","f_codigo","f_voo","f_inicio","f_tempo","f_ua","f_ciclos","f_nbat","f_carga_ini","f_carga_fim","f_obs"];
+  const d = {};
+  ids.forEach(id=>{
+    const el = document.getElementById(id);
+    if (!el) return;
+    d[id] = String(el.value ?? "");
+  });
+  const dateEl = document.getElementById("f_date");
+  if (dateEl) d.__date = String(dateEl.value || "");
+  writeDraft(d);
+}
+
+function restoreDraftToForm(){
+  const d = readDraft();
+  if (!d) return;
+
+  const dateEl = document.getElementById("f_date");
+  const currentDate = dateEl ? String(dateEl.value || "") : "";
+  if (d.__date && currentDate && d.__date !== currentDate) return;
+
+  const ids = ["f_nome","f_missao","f_codigo","f_voo","f_inicio","f_tempo","f_ua","f_ciclos","f_nbat","f_carga_ini","f_carga_fim","f_obs"];
+  ids.forEach(id=>{
+    if (!(id in d)) return;
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (String(el.value || "") !== "") return;
+    el.value = String(d[id] ?? "");
+  });
+}
+
+function attachDraftListeners(){
+  const ids = ["f_nome","f_missao","f_codigo","f_voo","f_inicio","f_tempo","f_ua","f_ciclos","f_nbat","f_carga_ini","f_carga_fim","f_obs"];
+  ids.forEach(id=>{
+    const el = document.getElementById(id);
+    if (!el) return;
+    const evt = (el.tagName === "SELECT") ? "change" : "input";
+    el.addEventListener(evt, captureDraftFromForm);
+  });
+
+  document.addEventListener("visibilitychange", ()=>{
+    if (!document.hidden){
+      restoreDraftToForm();
+    }else{
+      captureDraftFromForm();
+    }
+  });
+  window.addEventListener("pagehide", captureDraftFromForm);
+}
+
+
 function pad2(n){ return String(n).padStart(2, "0"); }
 function todayISO(){
   const d = new Date();
@@ -626,7 +700,7 @@ function clearForm(){
     if (defaultName && names.includes(defaultName)) nameSel.value = defaultName;
     else nameSel.value = "";
   }
-
+  clearDraft();
 }
 
 function formatForCopy(e){
@@ -976,6 +1050,8 @@ function applyAppState(state){
   ensureNameSelects();
   renderNameList();
   updateAutoNum();
+  restoreDraftToForm();
+  attachDraftListeners();
   renderHistory();
   renderUAs();
 }
@@ -1241,6 +1317,41 @@ function deleteUA(i){
 }
 
 /* ===== Modal Edit ===== */
+
+function ensureEditLabels(){
+  const map = [
+    ["e_num","Nº"],
+    ["e_missao","MISSÃO"],
+    ["e_codigo","CÓDIGO"],
+    ["e_voo","VOO (h)"],
+    ["e_inicio","INÍCIO"],
+    ["e_tempo","TEMPO (min)"],
+    ["e_ua","UA"],
+    ["e_ciclos","CICLOS"],
+    ["e_nbat","Nº BATERIA"],
+    ["e_carga_ini","CARGA INI (%)"],
+    ["e_carga_fim","CARGA FIM (%)"],
+    ["e_obs","OBSERVAÇÕES"]
+  ];
+  map.forEach(([id, label])=>{
+    const el = document.getElementById(id);
+    if (!el || !el.parentNode) return;
+
+    const prev = el.previousElementSibling;
+    if (prev && prev.classList && prev.classList.contains("fieldLabel")){
+      prev.textContent = label;
+    }else{
+      const lab = document.createElement("div");
+      lab.className = "fieldLabel";
+      lab.textContent = label;
+      el.parentNode.insertBefore(lab, el);
+    }
+
+    el.setAttribute("aria-label", label);
+    el.setAttribute("title", label);
+  });
+}
+
 let editId = null;
 
 function openEditModal(id){
@@ -1250,6 +1361,7 @@ function openEditModal(id){
   editId = id;
   ensureUASelects();
   buildPickers();
+  ensureEditLabels();
 
   const f = e.fields || {};
   document.getElementById("modalSub").textContent =
@@ -1339,8 +1451,11 @@ function deleteEdit(){
     dEl.addEventListener("change", () => updateAutoNum());
   }
   updateAutoNum();
+  restoreDraftToForm();
+  attachDraftListeners();
   renderHistory();
   renderUAs();
+  ensureNameSelects();
 
   const btnEnd = document.getElementById("btnEnd");
   if (btnEnd) btnEnd.disabled = true;
