@@ -446,19 +446,25 @@ function endFlight(){
   const tempo = document.getElementById("f_tempo");
   const inicio = document.getElementById("f_inicio");
 
+  // Se não iniciou o cronômetro
   if (!runStartMs){
     const cur = normalizeStr(inicio?.value);
     if (!cur){
       alert("Toque em INICIAR VOO para preencher o início automaticamente.");
       return;
     }
-    alert("Você não iniciou o cronômetro. Vou preencher o tempo como 1 minuto (mínimo).");
+    // mantém comportamento original: mínimo 1 minuto
     if (tempo) tempo.value = "1";
+    alert("Você não iniciou o cronômetro. Vou preencher o tempo como 1 minuto (mínimo).");
     return;
   }
 
   const mins = minutesBetween(runStartMs, Date.now());
-  if (tempo) tempo.value = String(mins);
+
+  // garante preenchimento
+  if (tempo){
+    tempo.value = String(mins);
+  }
 
   runStartMs = null;
 
@@ -466,24 +472,6 @@ function endFlight(){
   const btnEnd = document.getElementById("btnEnd");
   if (btnStart) btnStart.disabled = false;
   if (btnEnd) btnEnd.disabled = true;
-
-  // Força separador decimal com ponto no campo VOO (aceita também vírgula e converte)
-  function bindDotDecimal(id){
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.addEventListener("input", () => {
-      let v = String(el.value || "");
-      v = v.replace(/,/g, ".");
-      v = v.replace(/[^0-9.]/g, "");
-      const parts = v.split(".");
-      if (parts.length > 2){
-        v = parts[0] + "." + parts.slice(1).join("");
-      }
-      el.value = v;
-    });
-  }
-  bindDotDecimal("f_voo");
-  bindDotDecimal("e_voo");
 
   const h = normalizeStr(inicio?.value) || (lastStartedAt || "—");
   showMsg(`Voo encerrado - ${mins} min (início ${h})`);
@@ -1417,3 +1405,9 @@ function deleteEdit(){
     navigator.serviceWorker.register("./service-worker.js").catch(() => {});
   }
 })();
+
+
+document.addEventListener("DOMContentLoaded", function(){
+  bindDotDecimal("f_voo");
+  bindDotDecimal("e_voo");
+});
