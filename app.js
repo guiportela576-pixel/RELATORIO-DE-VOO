@@ -1,5 +1,5 @@
 // Relatório de Voo (PWA) - armazenamento local
-const APP_VERSION = "1.1.4 (autosync)";
+const APP_VERSION = "1.2.3 (autosync)";
 const VERSION_HISTORY = [
   "1.2.3 - Códigos de operação pré-carregados (não sobrescreve dados existentes)",
   "1.2.2 - Correção: botões/tabs voltaram a funcionar (erro JS) + VOO decimal no teclado",
@@ -467,21 +467,6 @@ function endFlight(){
   if (btnStart) btnStart.disabled = false;
   if (btnEnd) btnEnd.disabled = true;
 
-  // Força separador decimal com ponto no campo VOO (aceita também vírgula e converte)
-  function bindDotDecimal(id){
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.addEventListener("input", () => {
-      let v = String(el.value || "");
-      v = v.replace(/,/g, ".");
-      v = v.replace(/[^0-9.]/g, "");
-      const parts = v.split(".");
-      if (parts.length > 2){
-        v = parts[0] + "." + parts.slice(1).join("");
-      }
-      el.value = v;
-    });
-  }
   bindDotDecimal("f_voo");
   bindDotDecimal("e_voo");
 
@@ -970,7 +955,9 @@ function getAppState(){
     entries: Array.isArray(entries) ? entries : [],
     uas: Array.isArray(uas) ? uas : [],
     defaultUA: String(defaultUA || ""),
-    opCodes: Array.isArray(opCodes) ? opCodes : []
+    opCodes: Array.isArray(opCodes) ? opCodes : [],
+    pilotNames: Array.isArray(names) ? names : [],
+    defaultName: String(defaultName || "")
   };
 }
 
@@ -980,9 +967,14 @@ function applyAppState(state){
   uas = Array.isArray(state.uas) ? state.uas : [];
   defaultUA = String(state.defaultUA || "");
   opCodes = Array.isArray(state.opCodes) ? state.opCodes : [];
+  // Nomes (compatível com versões antigas: não apaga se não vier no payload)
+  if ("pilotNames" in state) names = Array.isArray(state.pilotNames) ? state.pilotNames : [];
+  if ("defaultName" in state) defaultName = String(state.defaultName || "");
   saveAll();
   ensureUASelects();
   ensureCodeSelects();
+  ensureNameSelects();
+  renderNameList();
   updateAutoNum();
   renderHistory();
   renderUAs();
@@ -1353,43 +1345,9 @@ function deleteEdit(){
   const btnEnd = document.getElementById("btnEnd");
   if (btnEnd) btnEnd.disabled = true;
 
-  // Força separador decimal com ponto no campo VOO (aceita também vírgula e converte)
-  function bindDotDecimal(id){
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.addEventListener('input', () => {
-      const v = String(el.value || '');
-      // troca vírgula por ponto e remove caracteres não permitidos
-      let out = v.replace(/,/g, '.').replace(/[^0-9.]/g, '');
-      // evita mais de um ponto
-      const parts = out.split('.');
-      if (parts.length > 2){
-        out = parts[0] + '.' + parts.slice(1).join('');
-      }
-      if (out !== v) el.value = out;
-    });
-  }
   bindDotDecimal('f_voo');
   bindDotDecimal('e_voo');
 
-  // Força separador decimal com ponto no campo VOO (aceita também vírgula e converte)
-  function bindDotDecimal(id){
-    const el = document.getElementById(id);
-    if (!el) return;
-    const fix = () => {
-      let v = String(el.value || '');
-      v = v.replace(/,/g, '.');
-      v = v.replace(/[^0-9.]/g, '');
-      // evita mais de um ponto
-      const parts = v.split('.');
-      if (parts.length > 2){
-        v = parts[0] + '.' + parts.slice(1).join('');
-      }
-      el.value = v;
-    };
-    el.addEventListener('input', fix);
-    el.addEventListener('blur', fix);
-  }
   bindDotDecimal('f_voo');
   bindDotDecimal('e_voo');
 
