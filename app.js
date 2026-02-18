@@ -450,6 +450,15 @@ runStartMs = Date.now();
   if (btnEnd) btnEnd.disabled = false;
 
   showMsg(`Voo iniciado às ${hhmm}`);
+
+  // Reforço: garante que campos readonly (time/number) atualizem visualmente em alguns browsers/PWA
+  const raf = (window.requestAnimationFrame ? window.requestAnimationFrame : (fn)=>setTimeout(fn,0));
+  raf(() => {
+    const i = document.getElementById("f_inicio");
+    const t = document.getElementById("f_tempo");
+    if (i) setElValue(i, hhmm);
+    if (t) setElValue(t, "");
+  });
 }
 
 function endFlight(){
@@ -485,6 +494,13 @@ function endFlight(){
 
   const h = normalizeStr(inicio?.value) || (lastStartedAt || "—");
   showMsg(`Voo encerrado - ${mins} min (início ${h})`);
+
+  // Reforço: garante que o tempo calculado apareça no campo (readonly) imediatamente
+  const raf = (window.requestAnimationFrame ? window.requestAnimationFrame : (fn)=>setTimeout(fn,0));
+  raf(() => {
+    const t = document.getElementById("f_tempo");
+    if (t) setElValue(t, String(mins));
+  });
 }
 
 function getFieldValue(id){
