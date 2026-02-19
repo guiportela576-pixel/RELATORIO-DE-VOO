@@ -67,8 +67,41 @@ if (!Array.isArray(opCodes) || opCodes.length === 0){
   localStorage.setItem("opCodes", JSON.stringify(opCodes));
 }
 
+// ===== Identidade do dispositivo + controle simples de versão do estado (anti-sobrescrita) =====
+const DEVICE_ID_KEY = "deviceId";
+const LOCAL_STATE_UPDATED_AT_KEY = "localStateUpdatedAt";
+
+function getDeviceId(){
+  let id = localStorage.getItem(DEVICE_ID_KEY);
+  if (!id){
+    try{
+      id = (crypto.randomUUID ? crypto.randomUUID() : (String(Date.now()) + Math.random().toString(16).slice(2)));
+    }catch(e){
+      id = String(Date.now()) + Math.random().toString(16).slice(2);
+    }
+    localStorage.setItem(DEVICE_ID_KEY, id);
+  }
+  return id;
+}
+
+function getLocalStateUpdatedAt(){
+  const n = Number(localStorage.getItem(LOCAL_STATE_UPDATED_AT_KEY) || 0);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function bumpLocalStateUpdatedAt(ts){
+  const t = Number(ts);
+  const val = Number.isFinite(t) && t > 0 ? t : Date.now();
+  localStorage.setItem(LOCAL_STATE_UPDATED_AT_KEY, String(val));
+  return val;
+}
+
 let runStartMs = null; // cronômetro
 let lastStartedAt = null; // string HH:MM
+
+// inicializa metadados (primeira execução)
+try{ getDeviceId(); }catch(e){}
+if (getLocalStateUpdatedAt() === 0) bumpLocalStateUpdatedAt();
 
 function saveAll(){
   localStorage.setItem("flightReports", JSON.stringify(Array.isArray(entries) ? entries : []));
@@ -77,6 +110,7 @@ function saveAll(){
   localStorage.setItem("opCodes", JSON.stringify(Array.isArray(opCodes) ? opCodes : []));
   localStorage.setItem("pilotNames", JSON.stringify(Array.isArray(names) ? names : []));
   localStorage.setItem("defaultName", String(defaultName || ""));
+  bumpLocalStateUpdatedAt();
 }
 
 function pad2(n){ return String(n).padStart(2, "0"); }
@@ -981,21 +1015,53 @@ function setSyncStatus(msg){
 
 function getAppState(){
   return {
+    // dados principais
     entries: Array.isArray(entries) ? entries : [],
     uas: Array.isArray(uas) ? uas : [],
     defaultUA: String(defaultUA || ""),
-    opCodes: Array.isArray(opCodes) ? opCodes : []
+    opCodes: Array.isArray(opCodes) ? opCodes : [],
+
+    // nomes (antes não sincronizava)
+    names: Array.isArray(names) ? names : [],
+    defaultName: String(defaultName || ""),
+
+    // metadados simples para evitar sobrescrita por estado antigo
+    deviceId: getDeviceId(),
+    updatedAt: getLocalStateUpdatedAt()
   };
 }
 
 function applyAppState(state){
   if (!state || typeof state !== "object") return;
+
+  // Anti-sobrescrita: se o estado vindo da planilha for mais antigo que o estado local, não aplica
+  const incomingUpdatedAt = Number(state.updatedAt || 0);
+  const localUpdatedAt = getLocalStateUpdatedAt();
+
+  if (Number.isFinite(incomingUpdatedAt) && incomingUpdatedAt > 0 && localUpdatedAt > 0 && incomingUpdatedAt < localUpdatedAt){
+    setSyncStatus("⚠️ Recebi um estado mais antigo da planilha. Para não perder dados, não vou sobrescrever este aparelho.");
+    return;
+  }
+
   entries = Array.isArray(state.entries) ? state.entries : [];
   uas = Array.isArray(state.uas) ? state.uas : [];
   defaultUA = String(state.defaultUA || "");
   opCodes = Array.isArray(state.opCodes) ? state.opCodes : [];
+
+  // nomes (sincronizados)
+  names = Array.isArray(state.names) ? state.names : [];
+  defaultName = String(state.defaultName || "");
+
+  // marca o estado local com o timestamp recebido (ou mantém o local se não vier)
+  if (Number.isFinite(incomingUpdatedAt) && incomingUpdatedAt > 0){
+    bumpLocalStateUpdatedAt(incomingUpdatedAt);
+  }else{
+    bumpLocalStateUpdatedAt();
+  }
+
   saveAll();
   ensureUASelects();
+  ensureNameSelects();
   ensureCodeSelects();
   updateAutoNum();
   renderHistory();
@@ -1083,6 +1149,8 @@ function syncPullViaJSONP(timeoutMs = 20000){
 
 function syncPushViaBeacon(){
   return new Promise((resolve) => {
+    // garante timestamp mais recente do estado antes de enviar
+    bumpLocalStateUpdatedAt();
     const dataStr = JSON.stringify(getAppState());
     // sendBeacon: melhor para cross-domain sem CORS (não lê resposta)
     if (navigator && typeof navigator.sendBeacon === "function"){
@@ -1436,4 +1504,5 @@ function deleteEdit(){
 document.addEventListener("DOMContentLoaded", function(){
   bindDotDecimal("f_voo");
   bindDotDecimal("e_voo");
+  bumpLocalStateUpdatedAt();
 });
