@@ -1,1213 +1,4 @@
 // Relatório de Voo (PWA) - armazenamento local
-const APP_VERSION = "1.1.5 (sync-fix)";
-const VERSION_HISTORY = [
-  "1.1.5 - Correções: pull só do dia + merge seguro + cálculo de minutos mais preciso + syncPull/syncPush async",
-  "1.2.3 - Códigos de operação pré-carregados (não sobrescreve dados existentes)",
-  "1.2.2 - Correção: botões/tabs voltaram a funcionar (erro JS) + VOO decimal no teclado",
-  "1.2.0 - Códigos de operação + total de minutos do dia + export PDF corrigido (Android/iOS) + teclado numérico (Voo/Cargas)",
-  "1.1.0 - Campos automáticos (início/tempo) + seletores (bat/ciclos/carga) + remoção de pousos + novo ícone",
-  "1.0.0 - App inicial (novo + histórico + UA + cronômetro)"
-];
-
-// URL do Apps Script (Planilha) para sincronização
-const SYNC_URL = "https://script.google.com/macros/s/AKfycbzvavI93pQGiyX5hWhOSdPfHgQcIQxLJQXrjkht4gw0ax_6ZtPn1NUsNs24pIcE9i32/exec";
-
-
-let entries = JSON.parse(localStorage.getItem("flightReports")) || [];
-let uas = JSON.parse(localStorage.getItem("uas")) || [];
-let defaultUA = localStorage.getItem("defaultUA") || "";
-
-let names = JSON.parse(localStorage.getItem("pilotNames")) || [];
-let defaultName = localStorage.getItem("defaultName") || "";
-let opCodes = JSON.parse(localStorage.getItem("opCodes")) || [];
-let codesCollapsed = localStorage.getItem("codesCollapsed") === "1";
-
-const DEFAULT_OP_CODES = [
-  "1 - PLANEJAMENTO OPERACIONAL",
-  "2 - INTELIGÊNCIA",
-  "3 - MONITORAMENTO DE MANIFESTAÇÕES",
-  "4 - POLICIAMENTO EM EVENTOS",
-  "5 - APOIO E OPERAÇÕES EM ÁREAS DE RISCO",
-  "6 - OPERAÇÃO DE REINTEGRAÇÃO DE POSSE",
-  "7 - APOIO EM BLOQUEIOS",
-  "8 - TRÂNSITO EM RODOVIAS",
-  "9 - TRÂNSITO DE ÁREA URBANA",
-  "10 - PATRULHAMENTO AQUÁTICO",
-  "11 - FISCALIZAÇÃO AMBIENTAL",
-  "12 - FISCALIZAÇÃO DE FAUNA",
-  "13 - FISCALIZAÇÃO DE FLORA",
-  "14 - FISCALIZAÇÃO DE PESCA",
-  "15 - AVALIAÇÃO DE RISCO",
-  "16 - AVALIAÇÃO DE OBRA OU CONSTRUÇÃO",
-  "17 - VÍDEOS INSTITUCIONAIS",
-  "18 - SOLENIDADE",
-  "19 - DEMOSTRAÇÃO",
-  "20 - INSTRUÇÃO / TREINAMENTO",
-  "21 - VOO DE MANUTENÇÃO",
-  "22 - DISTÚRBIOS CIVIS",
-  "23 - REBELIÃO / FUGA DE PRESOS",
-  "24 - OCORRÊNCIA DE CAIXA ELETRONICO /",
-  "25 - OCORRÊNCIA COM REFÉM",
-  "26 - OCORRENCIA COM ARTEFATO EXPLOSIVO",
-  "27 - INCÊNDIO EM EDIFICAÇÃO",
-  "28 - INCÊNDIO EM MATA",
-  "29 - ACIDENTE DE TRÂNSITO",
-  "30 - ACIDENTE / DESASTRES",
-  "31 - BUSCA A INDIVIDUO(S) HOMIZIADO(S)",
-  "32 - BUSCA",
-  "33 - BREC (Busca e Resgate em Estruturas Colapsada)",
-  "34 - PESQUISA",
-  "35 - SALVAMENTO AQUÁTICO",
-  "36 - VIDEOPATRULHAMENTO",
-  "37 - APOIO AO POLICIAMENTO URBANO"
-];
-
-// Pré-carrega códigos apenas se ainda não houver nenhum salvo (não sobrescreve)
-if (!Array.isArray(opCodes) || opCodes.length === 0){
-  opCodes = [...DEFAULT_OP_CODES];
-  localStorage.setItem("opCodes", JSON.stringify(opCodes));
-}
-
-let runStartMs = null; // cronômetro
-let lastStartedAt = null; // string HH:MM
-
-function saveAll(){
-  localStorage.setItem("flightReports", JSON.stringify(Array.isArray(entries) ? entries : []));
-  localStorage.setItem("uas", JSON.stringify(Array.isArray(uas) ? uas : []));
-  localStorage.setItem("defaultUA", String(defaultUA || ""));
-  localStorage.setItem("opCodes", JSON.stringify(Array.isArray(opCodes) ? opCodes : []));
-  localStorage.setItem("pilotNames", JSON.stringify(Array.isArray(names) ? names : []));
-  localStorage.setItem("defaultName", String(defaultName || ""));
-}
-
-function pad2(n){ return String(n).padStart(2, "0"); }
-function todayISO(){
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth()+1).padStart(2,"0");
-  const day = String(d.getDate()).padStart(2,"0");
-  return `${y}-${m}-${day}`;
-}
-function nowHHMM(){
-  const d = new Date();
-  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
-}
-function minutesBetween(startMs, endMs){
-  const ms = Math.max(0, (endMs - startMs));
-  const full = Math.floor(ms / 60000);
-  const rem = ms % 60000;
-  const mins = full + (rem >= 30000 ? 1 : 0); // arredonda para o minuto mais próximo
-  return Math.max(1, mins);
-}
-function normalizeStr(s){
-  return String(s || "").trim().replace(/\s+/g, " ");
-}
-
-// Permite decimal com ponto (aceita vírgula e converte)
-function normalizeDecimalDots(s){
-  return normalizeStr(s).replace(/,/g, '.').replace(/[^0-9.]/g, '');
-}
-
-function setElValue(el, v){
-  if (!el) return;
-  const val = String(v ?? "");
-  try{ el.value = val; }catch(e){}
-  try{ el.setAttribute("value", val); }catch(e){}
-  try{ el.dispatchEvent(new Event("input", { bubbles:true })); }catch(e){}
-  try{ el.dispatchEvent(new Event("change", { bubbles:true })); }catch(e){}
-}
-
-function showMsg(text){
-  const el = document.getElementById("runMsg");
-  if (!el) return;
-  el.style.display = "block";
-  el.textContent = text;
-  setTimeout(() => { el.style.display = "none"; }, 3000);
-}
-
-function showTab(key){
-  const tabs = ["new","history","uas"];
-  tabs.forEach(k => {
-    const el = document.getElementById(`tab-${k}`);
-    if (el) el.style.display = (k === key) ? "block" : "none";
-  });
-
-  const btns = { new:"tabBtnNew", history:"tabBtnHistory", uas:"tabBtnUAs" };
-  Object.entries(btns).forEach(([k, id]) => {
-    const b = document.getElementById(id);
-    if (!b) return;
-    if (k === key) b.classList.add("active");
-    else b.classList.remove("active");
-  });
-
-  if (key === "history") renderHistory();
-  if (key === "new") { ensureCodeSelects(); updateAutoNum(); }
-  if (key === "uas") renderUAs();
-}
-
-/* ===== Selects (roleta nativa no celular) ===== */
-function fillSelect(id, placeholder, options){
-  const sel = document.getElementById(id);
-  if (!sel) return;
-  if (String(sel.tagName||"").toUpperCase() !== "SELECT") return;
-  if (String(sel.tagName || "").toUpperCase() !== "SELECT") return; // não mexe em inputs
-
-  const prev = sel.value;
-  sel.innerHTML = "";
-
-  const opt0 = document.createElement("option");
-  opt0.value = "";
-  opt0.textContent = placeholder;
-  sel.appendChild(opt0);
-
-  options.forEach(o => {
-    const opt = document.createElement("option");
-    opt.value = String(o.value);
-    opt.textContent = String(o.label);
-    sel.appendChild(opt);
-  });
-
-  // tenta restaurar valor anterior (se existir na lista)
-  if (prev && Array.from(sel.options).some(x => x.value === prev)) sel.value = prev;
-  else sel.value = "";
-}
-
-function buildPickers(){
-  // ciclos 0..400
-  const ciclos = [];
-  for (let i=0; i<=400; i++) ciclos.push({ value: String(i), label: String(i) });
-
-  // bat 1..6
-  const bat = [];
-  for (let i=1; i<=6; i++) bat.push({ value: String(i), label: String(i) });
-
-  // carga inicial 100..0 (desc)
-  const cIni = [];
-  for (let i=100; i>=0; i--) cIni.push({ value: String(i), label: `${i}%` });
-
-  // carga final 0..100 (asc)
-  const cFim = [];
-  for (let i=0; i<=100; i++) cFim.push({ value: String(i), label: `${i}%` });
-
-  fillSelect("f_ciclos", "", ciclos);
-  fillSelect("e_ciclos", "", ciclos);
-
-  fillSelect("f_nbat", "", bat);
-  fillSelect("e_nbat", "", bat);
-
-  fillSelect("f_carga_ini", "", cIni);
-  fillSelect("e_carga_ini", "", cIni);
-
-  fillSelect("f_carga_fim", "", cFim);
-  fillSelect("e_carga_fim", "", cFim);
-}
-
-function ensureUASelects(){
-  const selectNew = document.getElementById("f_ua");
-  const selectEdit = document.getElementById("e_ua");
-  const filterUA = document.getElementById("filterUA");
-
-  const build = (sel, placeholder) => {
-    if (!sel) return;
-    const prev = sel.value;
-    sel.innerHTML = "";
-    const opt0 = document.createElement("option");
-    opt0.value = "";
-    opt0.textContent = placeholder;
-    sel.appendChild(opt0);
-
-    uas.forEach(u => {
-      const opt = document.createElement("option");
-      opt.value = u;
-      opt.textContent = u;
-      sel.appendChild(opt);
-    });
-
-    if (prev && Array.from(sel.options).some(o => o.value === prev)) sel.value = prev;
-  };
-
-  build(selectNew, "UA (opcional)");
-  build(selectEdit, "UA (opcional)");
-
-  if (filterUA){
-    const prev = filterUA.value;
-    filterUA.innerHTML = "";
-    const optAll = document.createElement("option");
-    optAll.value = "";
-    optAll.textContent = "Todas UAs";
-    filterUA.appendChild(optAll);
-    uas.forEach(u => {
-      const opt = document.createElement("option");
-      opt.value = u;
-      opt.textContent = u;
-      filterUA.appendChild(opt);
-    });
-    if (prev && Array.from(filterUA.options).some(o => o.value === prev)) filterUA.value = prev;
-  }
-
-  if (selectNew && defaultUA && uas.includes(defaultUA)) selectNew.value = defaultUA;
-}
-
-
-function ensureNameSelects(){
-  // select no formulário NOVO
-  const sel = document.getElementById("f_nome");
-  if (sel){
-    sel.innerHTML = "";
-    const opts = ["", ...names];
-    opts.forEach(n => {
-      const o = document.createElement("option");
-      o.value = n;
-      o.textContent = n ? n : "—";
-      sel.appendChild(o);
-    });
-    if (defaultName && names.includes(defaultName)){
-      sel.value = defaultName;
-    }else{
-      sel.value = "";
-    }
-  }
-
-  // select no modal (se existir)
-  const selEdit = document.getElementById("e_nome");
-  if (selEdit){
-    selEdit.innerHTML = "";
-    const opts = ["", ...names];
-    opts.forEach(n => {
-      const o = document.createElement("option");
-      o.value = n;
-      o.textContent = n ? n : "—";
-      selEdit.appendChild(o);
-    });
-  }
-
-  renderNameList();
-}
-
-function renderNameList(){
-  const ul = document.getElementById("nameList");
-  if (!ul) return;
-
-  ul.innerHTML = "";
-  if (!names.length){
-    const li = document.createElement("li");
-    li.innerHTML = '<div class="hint">Nenhum nome cadastrado ainda.</div>';
-    ul.appendChild(li);
-    return;
-  }
-
-  names.forEach(n => {
-    const li = document.createElement("li");
-    const isDef = (defaultName && n === defaultName);
-    li.innerHTML = `
-      <div class="row space">
-        <div class="cardline"><strong>NOME:</strong> ${n}${isDef ? " (padrão)" : ""}</div>
-        <button type="button" class="ghost" onclick="setDefaultName('${n.replace(/`/g,"")}')">Usar</button>
-      </div>
-    `;
-    ul.appendChild(li);
-  });
-}
-
-function addName(){
-  const v = normalizeStr(document.getElementById("nameNew")?.value);
-  if (!v) return;
-
-  if (!names.includes(v)){
-    names.push(v);
-  }
-  if (!defaultName) defaultName = v;
-
-  saveAll();
-  ensureNameSelects();
-
-  const inp = document.getElementById("nameNew");
-  if (inp) inp.value = "";
-
-  showMsg("Nome salvo!");
-}
-
-function setDefaultName(force){
-  const v = normalizeStr(force || document.getElementById("nameNew")?.value);
-  if (!v) return;
-
-  if (!names.includes(v)){
-    names.push(v);
-  }
-  defaultName = v;
-
-  saveAll();
-  ensureNameSelects();
-  showMsg("Nome padrão definido!");
-}
-
-
-function ensureCodeSelects(){
-  const elNew = document.getElementById("f_codigo"); // agora é input readonly
-  const selEdit = document.getElementById("e_codigo"); // mantém select no modal de edição
-
-  // atualiza input (novo)
-  if (elNew){
-    const cur = normalizeStr(elNew.value);
-    const list = (Array.isArray(opCodes) ? opCodes : []).map(c => normalizeStr(c)).filter(Boolean);
-
-    // se o valor atual não existe mais, limpa
-    if (cur && !list.includes(cur)) elNew.value = "";
-
-    // placeholder simples
-    if (!elNew.value) elNew.placeholder = "Toque para selecionar";
-  }
-
-  const buildSelect = (sel, placeholder) => {
-    if (!sel) return;
-    if (String(sel.tagName || "").toUpperCase() !== "SELECT") return;
-    const prev = sel.value;
-    sel.innerHTML = "";
-
-    const opt0 = document.createElement("option");
-    opt0.value = "";
-    opt0.textContent = placeholder;
-    sel.appendChild(opt0);
-
-    (Array.isArray(opCodes) ? opCodes : []).forEach(c => {
-      const code = normalizeStr(c);
-      if (!code) return;
-      const opt = document.createElement("option");
-      opt.value = code;
-      opt.textContent = code;
-      sel.appendChild(opt);
-    });
-
-    if (prev && Array.from(sel.options).some(o => o.value === prev)) sel.value = prev;
-  };
-
-  buildSelect(selEdit, "Código (opcional)");
-}
-
-
-/* ===== Code Picker (Tela cheia) ===== */
-let codePickerOpen = false;
-
-function renderCodePicker(){
-  const ul = document.getElementById("codePickerList");
-  if (!ul) return;
-  ul.innerHTML = "";
-
-  const list = (Array.isArray(opCodes) ? opCodes : []).map(c => normalizeStr(c)).filter(Boolean);
-  if (!list.length){
-    const li = document.createElement("li");
-    li.textContent = "Nenhum código cadastrado ainda (cadastre na aba UA).";
-    ul.appendChild(li);
-    return;
-  }
-
-  list.forEach(code => {
-    const li = document.createElement("li");
-    li.innerHTML = `<button type="button" class="picker-item" onclick="selectCode('${code.replace(/'/g, "\'")}')">${code}</button>`;
-    ul.appendChild(li);
-  });
-}
-
-function openCodePicker(){
-  const modal = document.getElementById("codePickerModal");
-  if (!modal) return;
-  codePickerOpen = true;
-  renderCodePicker();
-  modal.style.display = "flex";
-}
-
-function closeCodePicker(){
-  const modal = document.getElementById("codePickerModal");
-  if (!modal) return;
-  codePickerOpen = false;
-  modal.style.display = "none";
-}
-
-function codePickerBackdrop(ev){
-  // fecha ao tocar no fundo
-  if (!ev) return;
-  const modal = document.getElementById("codePickerModal");
-  if (!modal) return;
-  if (ev.target === modal) closeCodePicker();
-}
-
-function selectCode(code){
-  const input = document.getElementById("f_codigo");
-  if (input) input.value = normalizeStr(code);
-  closeCodePicker();
-}
-
-function startFlight(){
-  const inicio = document.getElementById("f_inicio");
-  const tempo = document.getElementById("f_tempo");
-
-  const hhmm = nowHHMM();
-  if (inicio) setElValue(inicio, hhmm);
-  if (tempo) setElValue(tempo, "");
-
-runStartMs = Date.now();
-  lastStartedAt = hhmm;
-
-  const btnStart = document.getElementById("btnStart");
-  const btnEnd = document.getElementById("btnEnd");
-  if (btnStart) btnStart.disabled = true;
-  if (btnEnd) btnEnd.disabled = false;
-
-  showMsg(`Voo iniciado às ${hhmm}`);
-
-  // Reforço: garante que campos readonly (time/number) atualizem visualmente em alguns browsers/PWA
-  const raf = (window.requestAnimationFrame ? window.requestAnimationFrame : (fn)=>setTimeout(fn,0));
-  raf(() => {
-    const i = document.getElementById("f_inicio");
-    const t = document.getElementById("f_tempo");
-    if (i) setElValue(i, hhmm);
-    if (t) setElValue(t, "");
-  });
-}
-
-function endFlight(){
-  const tempo = document.getElementById("f_tempo");
-  const inicio = document.getElementById("f_inicio");
-
-  // Se não iniciou o cronômetro
-  if (!runStartMs){
-    const cur = normalizeStr(inicio?.value);
-    if (!cur){
-      alert("Toque em INICIAR VOO para preencher o início automaticamente.");
-      return;
-    }
-    // mantém comportamento original: mínimo 1 minuto
-    if (tempo) setElValue(tempo, "1");
-    alert("Você não iniciou o cronômetro. Vou preencher o tempo como 1 minuto (mínimo).");
-    return;
-  }
-
-  const mins = minutesBetween(runStartMs, Date.now());
-
-  // garante preenchimento
-  if (tempo){
-    setElValue(tempo, String(mins));
-  }
-
-  runStartMs = null;
-
-  const btnStart = document.getElementById("btnStart");
-  const btnEnd = document.getElementById("btnEnd");
-  if (btnStart) btnStart.disabled = false;
-  if (btnEnd) btnEnd.disabled = true;
-
-  const h = normalizeStr(inicio?.value) || (lastStartedAt || "—");
-  showMsg(`Voo encerrado - ${mins} min (início ${h})`);
-
-  // Reforço: garante que o tempo calculado apareça no campo (readonly) imediatamente
-  const raf = (window.requestAnimationFrame ? window.requestAnimationFrame : (fn)=>setTimeout(fn,0));
-  raf(() => {
-    const t = document.getElementById("f_tempo");
-    if (t) setElValue(t, String(mins));
-  });
-}
-
-function getFieldValue(id){
-  const el = document.getElementById(id);
-  return el ? el.value : "";
-}
-function clampPercent(v){
-  const n = Number(v);
-  if (!Number.isFinite(n)) return "";
-  return String(Math.max(0, Math.min(100, Math.round(n))));
-}
-
-function buildEntryFromForm(){
-  const selectedDate = normalizeStr(getFieldValue("f_date")) || todayISO();
-
-  const num = normalizeStr(getFieldValue("f_num"));
-  const missao = normalizeStr(getFieldValue("f_missao"));
-  const codigo = normalizeStr(getFieldValue("f_codigo"));
-  const voo = normalizeDecimalDots(getFieldValue("f_voo"));
-  const inicio = normalizeStr(getFieldValue("f_inicio")); // automático
-  const tempo = normalizeStr(getFieldValue("f_tempo"));   // automático
-  const nome = normalizeStr(getFieldValue("f_nome")) || defaultName;
-  const ua = normalizeStr(getFieldValue("f_ua"));
-
-  const ciclos = normalizeStr(getFieldValue("f_ciclos"));
-  const nbat = normalizeStr(getFieldValue("f_nbat"));
-  const cargaIni = clampPercent(getFieldValue("f_carga_ini"));
-  const cargaFim = clampPercent(getFieldValue("f_carga_fim"));
-  const obs = normalizeStr(getFieldValue("f_obs"));
-
-  return {
-    id: (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2)),
-    date: selectedDate,
-    createdAt: new Date().toISOString(),
-    fields: { num, missao, codigo, voo, inicio, tempo, nome, ua, ciclos, nbat, cargaIni, cargaFim, obs }
-  };
-}
-
-function getSelectedDate(){
-  return normalizeStr(document.getElementById("f_date")?.value) || todayISO();
-}
-
-function nextNumForDate(dateStr){
-  let maxNum = 0;
-  entries.forEach(e => {
-    if (e?.date !== dateStr) return;
-    const n = Number(String(e?.fields?.num || "").replace(/[^0-9]/g, ""));
-    if (Number.isFinite(n) && n > maxNum) maxNum = n;
-  });
-  return String(maxNum + 1);
-}
-
-function updateAutoNum(){
-  const dateStr = getSelectedDate();
-  const numEl = document.getElementById("f_num");
-  if (!numEl) return;
-  numEl.value = nextNumForDate(dateStr);
-}
-
-function saveEntry(){
-  const inicio = normalizeStr(getFieldValue("f_inicio"));
-  const tempo = normalizeStr(getFieldValue("f_tempo"));
-
-  if (!inicio){
-    alert("Use INICIAR VOO para preencher o início automaticamente.");
-    return;
-  }
-  if (!tempo){
-    alert("Use ENCERRAR VOO para preencher o tempo automaticamente.");
-    return;
-  }
-  if (tempo && Number(tempo) < 1){
-    alert("Tempo de voo deve ser no mínimo 1 minuto.");
-    return;
-  }
-
-  if (runStartMs){
-    // se salvou sem encerrar, fecha automaticamente
-    const mins = minutesBetween(runStartMs, Date.now());
-    setElValue(document.getElementById("f_tempo"), String(mins));
-    runStartMs = null;
-    const btnStart = document.getElementById("btnStart");
-    const btnEnd = document.getElementById("btnEnd");
-    if (btnStart) btnStart.disabled = false;
-    if (btnEnd) btnEnd.disabled = true;
-  }
-
-  updateAutoNum();
-
-  const entry = buildEntryFromForm();
-  entry.fields.num = normalizeStr(document.getElementById("f_num")?.value) || entry.fields.num;
-
-  const nome = normalizeStr(entry.fields.nome);
-  if (nome && !names.includes(nome)){
-    names.push(nome);
-    if (!defaultName) defaultName = nome;
-  }
-
-  const ua = entry.fields.ua;
-  if (ua && !uas.includes(ua)){
-    uas.push(ua);
-    if (!defaultUA) defaultUA = ua;
-  }
-
-  entries.push(entry);
-  saveAll();
-  ensureUASelects();
-  clearForm();
-  showMsg("Registro salvo!");
-
-  // Auto-sync: envia para a planilha ao salvar (não bloqueia o salvamento)
-  try{
-    setSyncStatus("Enviando automaticamente para a planilha...");
-    syncPushViaBeacon().then((ok)=>{
-      if (ok) setSyncStatus("Enviado automaticamente para a planilha ✅");
-      else setSyncStatus("Falha no envio automático. Use \"Enviar para planilha\".");
-    });
-  }catch(e){
-    setSyncStatus("Falha no envio automático. Use \"Enviar para planilha\".");
-  }
-
-}
-
-function clearForm(){
-  const ids = ["f_missao","f_codigo","f_voo","f_inicio","f_tempo","f_obs"];
-  ids.forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.value = "";
-  });
-
-  // selects
-  ["f_ciclos","f_nbat","f_carga_ini","f_carga_fim"].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.value = "";
-  });
-
-  const dEl = document.getElementById("f_date");
-  if (dEl) dEl.value = todayISO();
-  updateAutoNum();
-
-  const uaSel = document.getElementById("f_ua");
-  if (uaSel && defaultUA && uas.includes(defaultUA)) uaSel.value = defaultUA;
-  else if (uaSel) uaSel.value = "";
-
-  runStartMs = null;
-  const btnStart = document.getElementById("btnStart");
-  const btnEnd = document.getElementById("btnEnd");
-  if (btnStart) btnStart.disabled = false;
-  if (btnEnd) btnEnd.disabled = true;
-  const nameSel = document.getElementById("f_nome");
-  if (nameSel){
-    if (defaultName && names.includes(defaultName)) nameSel.value = defaultName;
-    else nameSel.value = "";
-  }
-
-}
-
-function formatForCopy(e){
-  const f = e.fields || {};
-  const lines = [
-    `DATA: ${e.date || "-"}`,
-    `Nº: ${f.num || "-"}`,
-    `MISSÃO: ${f.missao || "-"}`,
-    `CÓDIGO: ${f.codigo || "-"}`,
-    `VOO: ${f.voo || "-"}`,
-    `HORÁRIO - INÍCIO: ${f.inicio || "-"}`,
-    `TEMPO DE VOO (MIN): ${f.tempo || "-"}`,
-    `UA: ${f.ua || "-"}`,
-    `CICLOS: ${f.ciclos || "-"}`,
-    `Nº BAT: ${f.nbat || "-"}`,
-    `CARGA INICIAL (%): ${f.cargaIni || "-"}`,
-    `CARGA FINAL (%): ${f.cargaFim || "-"}`,
-    `OBS: ${f.obs || "-"}`
-  ];
-  return lines.join("\n");
-}
-
-async function copyText(text){
-  try{
-    await navigator.clipboard.writeText(text);
-    alert("Copiado!");
-  }catch{
-    const ta = document.createElement("textarea");
-    ta.value = text;
-    document.body.appendChild(ta);
-    ta.select();
-    document.execCommand("copy");
-    ta.remove();
-    alert("Copiado!");
-  }
-}
-
-function exportTextAll(){
-  const list = getFilteredEntries();
-  if (!list.length){
-    alert("Sem itens para copiar.");
-    return;
-  }
-  const text = list.map(e => formatForCopy(e)).join("\n\n----------------\n\n");
-  copyText(text);
-}
-
-
-function exportPdfDay(){
-  // Exporta PDF (via impressão do navegador) com TODOS os voos do dia selecionado.
-  // Se não houver data no filtro, usa a data de hoje.
-  const date = normalizeStr(document.getElementById("filterDate")?.value) || todayISO();
-
-  const list = [...entries]
-    .filter(e => e?.date === date)
-    .sort((a,b) => String(a.createdAt||"").localeCompare(String(b.createdAt||"")));
-
-  if (!list.length){
-    alert("Não há voos para exportar nessa data.");
-    return;
-  }
-
-  const rows = list.map(e => {
-    const f = e.fields || {};
-    return `
-      <div class="item">
-        <div class="cardline"><strong>DATA:</strong> ${e.date || "-"}</div>
-        <div class="cardline"><strong>Nº:</strong> ${f.num || "-"}</div>
-      <div class="cardline"><strong>NOME:</strong> ${f.nome || "-"}</div>
-        <div class="cardline"><strong>MISSÃO:</strong> ${f.missao || "-"}</div>
-        <div class="cardline"><strong>CÓDIGO:</strong> ${f.codigo || "-"}</div>
-        <div class="cardline"><strong>VOO:</strong> ${f.voo || "-"}</div>
-        <div class="cardline"><strong>INÍCIO:</strong> ${f.inicio || "-"}</div>
-        <div class="cardline"><strong>TEMPO (min):</strong> ${f.tempo || "-"}</div>
-        <div class="cardline"><strong>UA:</strong> ${f.ua || "-"}</div>
-        <div class="cardline"><strong>CICLOS:</strong> ${f.ciclos || "-"}</div>
-        <div class="cardline"><strong>Nº BAT:</strong> ${f.nbat || "-"}</div>
-        <div class="cardline"><strong>CARGA INI:</strong> ${f.cargaIni || "-"}%</div>
-        <div class="cardline"><strong>CARGA FIM:</strong> ${f.cargaFim || "-"}%</div>
-        <div class="cardline"><strong>OBS:</strong> ${f.obs || "-"}</div>
-      </div>
-    `;
-  }).join("\n");
-
-  const title = `Relatório de Voo - ${date}`;
-  const html = `<!doctype html>
-<html lang="pt-BR">
-<head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>${title}</title>
-  <style>
-    body{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; margin: 20px; color:#111; }
-    h1{ font-size: 18px; margin: 0 0 10px 0; }
-    .sub{ font-size: 12px; margin-bottom: 16px; color:#333; }
-    .item{ padding: 10px 0; border-bottom: 1px solid #ddd; }
-    .item:last-child{ border-bottom:none; }
-    .cardline{ font-size: 14px; font-weight: 600; margin: 4px 0; }
-    .cardline strong{ font-weight: 800; }
-    @media print{
-      body{ margin: 10mm; }
-      .item{ page-break-inside: avoid; }
-    }
-  </style>
-</head>
-<body>
-  <h1>${title}</h1>
-  <div class="sub">Voos do dia no mesmo formato do histórico.</div>
-  ${rows}
-</body>
-</html>`;
-
-  openPdfPreview(html, title);
-}
-
-function openPdfPreview(html, title){
-  const overlay = document.getElementById("pdfOverlay");
-  const frame = document.getElementById("pdfFrame");
-  const t = document.getElementById("pdfTitle");
-  if (!overlay || !frame) {
-    // fallback (caso o HTML não tenha o modal)
-    const w = window.open("", "_blank");
-    if (!w){
-      alert("Não consegui abrir a janela de impressão. Verifique se o navegador bloqueou pop-up.");
-      return;
-    }
-    w.document.open();
-    w.document.write(html);
-    w.document.close();
-    w.focus();
-    w.print();
-    return;
-  }
-
-  if (t) t.textContent = title || "Prévia";
-  // srcdoc funciona bem em iOS/Android e mantém o app aberto com botão de fechar
-  frame.srcdoc = html;
-  overlay.style.display = "flex";
-}
-
-function closePdfPreview(){
-  const overlay = document.getElementById("pdfOverlay");
-  const frame = document.getElementById("pdfFrame");
-  if (frame) frame.srcdoc = "";
-  if (overlay) overlay.style.display = "none";
-}
-
-function printPdfPreview(){
-  const frame = document.getElementById("pdfFrame");
-  if (!frame) return;
-  try{
-    frame.contentWindow.focus();
-    frame.contentWindow.print();
-  }catch(e){
-    alert("Não consegui abrir a impressão aqui. Tente novamente.");
-  }
-}
-
-
-function getFilteredEntries(){
-  const d = normalizeStr(document.getElementById("filterDate")?.value);
-  const ua = normalizeStr(document.getElementById("filterUA")?.value);
-
-  const sorted = [...entries].sort((a,b) => String(b.createdAt||"").localeCompare(String(a.createdAt||"")));
-  return sorted.filter(e => {
-    if (d && e.date !== d) return false;
-    if (ua && normalizeStr(e.fields?.ua) !== ua) return false;
-    return true;
-  });
-}
-
-function applyFilters(){ renderHistory(); }
-
-function clearFilters(){
-  const fd = document.getElementById("filterDate");
-  const fu = document.getElementById("filterUA");
-  if (fd) fd.value = "";
-  if (fu) fu.value = "";
-  renderHistory();
-}
-
-function renderHistory(){
-  ensureUASelects();
-  const ul = document.getElementById("historyList");
-  const empty = document.getElementById("emptyHistory");
-  if (!ul) return;
-
-  ul.innerHTML = "";
-  const list = getFilteredEntries();
-
-  // total do dia (minutos + baterias únicas)
-  const dayTotalEl = document.getElementById("dayTotal");
-  if (dayTotalEl){
-    const day = normalizeStr(document.getElementById("filterDate")?.value) || todayISO();
-
-    const listDay = entries.filter(e => e?.date === day);
-
-    const totalMin = listDay.reduce((acc, e) => acc + (Number(e?.fields?.tempo) || 0), 0);
-
-    const batSet = new Set();
-    listDay.forEach(e => {
-      const b = normalizeStr(e?.fields?.nbat);
-      if (b) batSet.add(b);
-    });
-    const batCount = batSet.size;
-
-    const batText = (batCount === 1) ? "1 bateria" : `${batCount} baterias`;
-    const flights = listDay.length;
-const vooText = (flights === 1) ? "1 voo" : `${flights} voos`;
-const label = (day === todayISO()) ? "Total voado hoje" : `Total voado em ${day}`;
-dayTotalEl.textContent = `${label}: ${totalMin}min - ${vooText} - ${batText}`;
-    dayTotalEl.style.display = "block";
-  }
-
-  if (!list.length){
-    if (empty) empty.style.display = "block";
-    return;
-  }
-  if (empty) empty.style.display = "none";
-
-  list.forEach(e => {
-    const f = e.fields || {};
-    const li = document.createElement("li");
-    li.innerHTML = `
-      <div class="cardline"><strong>DATA:</strong> ${e.date || "-"}</div>
-      <div class="cardline"><strong>Nº:</strong> ${f.num || "-"}</div>
-      <div class="cardline"><strong>NOME:</strong> ${f.nome || "-"}</div>
-      <div class="cardline"><strong>MISSÃO:</strong> ${f.missao || "-"}</div>
-      <div class="cardline"><strong>CÓDIGO:</strong> ${f.codigo || "-"}</div>
-      <div class="cardline"><strong>VOO:</strong> ${f.voo || "-"}</div>
-      <div class="cardline"><strong>INÍCIO:</strong> ${f.inicio || "-"}</div>
-      <div class="cardline"><strong>TEMPO (min):</strong> ${f.tempo || "-"}</div>
-      <div class="cardline"><strong>UA:</strong> ${f.ua || "-"}</div>
-      <div class="cardline"><strong>CICLOS:</strong> ${f.ciclos || "-"}</div>
-      <div class="cardline"><strong>Nº BAT:</strong> ${f.nbat || "-"}</div>
-      <div class="cardline"><strong>CARGA INI:</strong> ${f.cargaIni || "-"}%</div>
-      <div class="cardline"><strong>CARGA FIM:</strong> ${f.cargaFim || "-"}%</div>
-      <div class="cardline"><strong>OBS:</strong> ${f.obs || "-"}</div>
-
-      <div class="actions">
-        <button type="button" class="ghost" onclick="openEditModal('${e.id}')">Editar</button>
-        <button type="button" onclick="copyOne('${e.id}')">Copiar</button>
-        <button type="button" class="danger" onclick="deleteOne('${e.id}')">Excluir</button>
-      </div>
-    `;
-    ul.appendChild(li);
-  });
-}
-
-function copyOne(id){
-  const e = entries.find(x => x.id === id);
-  if (!e) return;
-  copyText(formatForCopy(e));
-}
-
-function deleteOne(id){
-  const i = entries.findIndex(x => x.id === id);
-  if (i < 0) return;
-  if (!confirm("Excluir este voo do histórico?")) return;
-
-  entries.splice(i, 1);
-  saveAll();
-  renderHistory();
-  showMsg("Voo excluído!");
-
-  // dica rápida para sincronização
-  setSyncStatus("Voo excluído localmente. Clique em 'Enviar para planilha' para sincronizar.");
-}
-
-
-
-/* ===== UA ===== */
-function renderUAs(){
-  ensureUASelects();
-  ensureCodeSelects();
-
-  const ul = document.getElementById("uaList");
-  if (ul){
-    ul.innerHTML = "";
-    const list = [...uas];
-    if (!list.length){
-      const li = document.createElement("li");
-      li.textContent = "Nenhuma UA cadastrada ainda.";
-      ul.appendChild(li);
-    }else{
-      list.forEach((u, i) => {
-        const li = document.createElement("li");
-        li.innerHTML = `
-          <div class="cardline">${u}${(defaultUA && u === defaultUA) ? ' <strong>(padrão)</strong>' : ''}</div>
-          <div class="actions">
-            <button class="ghost" type="button" onclick="makeDefaultUA('${u}')">Definir padrão</button>
-            <button type="button" onclick="deleteUA(${i})">Excluir</button>
-          </div>
-        `;
-        ul.appendChild(li);
-      });
-    }
-  }
-
-  const v = document.getElementById("appVersion");
-  if (v) v.textContent = APP_VERSION;
-
-  const vh = document.getElementById("versionHistory");
-  if (vh){
-    vh.innerHTML = "";
-    renderCodes();
-
-    VERSION_HISTORY.forEach(item => {
-      const li = document.createElement("li");
-      li.textContent = item;
-      vh.appendChild(li);
-    });
-  }
-}
-
-
-
-/* ===== SINCRONIZAÇÃO (PLANILHA) ===== */
-function setSyncStatus(msg){
-  const el = document.getElementById("syncStatus");
-  if (el) el.textContent = msg || "";
-}
-
-function getAppState(){
-  return {
-    entries: Array.isArray(entries) ? entries : [],
-    uas: Array.isArray(uas) ? uas : [],
-    defaultUA: String(defaultUA || ""),
-    opCodes: Array.isArray(opCodes) ? opCodes : []
-  };
-}
-
-function applyAppState(state, opts){
-  if (!state || typeof state !== "object") return;
-
-  const options = (opts && typeof opts === "object") ? opts : {};
-  const onlyDay = options.onlyDay === true;
-  const targetDay = normalizeStr(options.day) || todayISO();
-
-  const incomingUpdatedAt = Number(state.updatedAt || 0);
-  const localUpdatedAt = getLocalStateUpdatedAt();
-
-  const incomingEntriesAll = Array.isArray(state.entries) ? state.entries : [];
-  const incomingEntries = onlyDay
-    ? incomingEntriesAll.filter(e => e && String(e.date || "") === String(targetDay))
-    : incomingEntriesAll;
-
-  // Se o estado vindo da planilha for mais antigo, NÃO sobrescreve tudo.
-  // Faz merge não-destrutivo: adiciona o que está faltando, mas não apaga o local.
-  const incomingIsOlder = (Number.isFinite(incomingUpdatedAt) && incomingUpdatedAt > 0 && localUpdatedAt > 0 && incomingUpdatedAt < localUpdatedAt);
-
-  if (incomingIsOlder){
-    // merge de entries por id
-    const map = new Map();
-    (Array.isArray(entries) ? entries : []).forEach(e => {
-      if (e && e.id) map.set(String(e.id), e);
-    });
-
-    incomingEntries.forEach(e => {
-      if (!e || !e.id) return;
-      const id = String(e.id);
-      if (!map.has(id)) map.set(id, e);
-      // se já existe local, mantém local (porque local é mais novo)
-    });
-
-    let merged = Array.from(map.values());
-
-    // Se estamos puxando só o dia, substitui APENAS o dia alvo pelo que veio da planilha (sem mexer no resto)
-    if (onlyDay){
-      const keep = merged.filter(e => String(e?.date || "") !== String(targetDay));
-      merged = keep.concat(incomingEntries);
-    }
-
-    entries = merged;
-
-    // merge de listas simples (união)
-    const inUas = Array.isArray(state.uas) ? state.uas : [];
-    uas = Array.from(new Set([...(Array.isArray(uas)?uas:[]), ...inUas].map(x => String(x)).filter(Boolean)));
-
-    const inCodes = Array.isArray(state.opCodes) ? state.opCodes : [];
-    opCodes = Array.from(new Set([...(Array.isArray(opCodes)?opCodes:[]), ...inCodes].map(x => String(x)).filter(Boolean)));
-
-    const inNames = Array.isArray(state.names) ? state.names : [];
-    names = Array.from(new Set([...(Array.isArray(names)?names:[]), ...inNames].map(x => String(x)).filter(Boolean)));
-
-    // defaultUA / defaultName: só preenche se ainda não tiver
-    if (!defaultUA) defaultUA = String(state.defaultUA || "");
-    if (!defaultName) defaultName = String(state.defaultName || "");
-
-    setSyncStatus("ℹ️ Planilha com estado mais antigo. Fiz merge sem apagar seus dados.");
-    // mantém timestamp local (não reduz)
-    bumpLocalStateUpdatedAt(localUpdatedAt || Date.now());
-  }else{
-    // Estado da planilha é igual/mais novo: aplica normalmente (ou só o dia, sem apagar o resto)
-    const newUas = Array.isArray(state.uas) ? state.uas : [];
-    const newCodes = Array.isArray(state.opCodes) ? state.opCodes : [];
-    const newNames = Array.isArray(state.names) ? state.names : [];
-
-    if (onlyDay){
-      const keep = (Array.isArray(entries) ? entries : []).filter(e => String(e?.date || "") !== String(targetDay));
-      entries = keep.concat(incomingEntries);
-    }else{
-      entries = incomingEntriesAll;
-    }
-
-    uas = newUas;
-    defaultUA = String(state.defaultUA || "");
-    opCodes = newCodes;
-
-    names = newNames;
-    defaultName = String(state.defaultName || "");
-
-    if (Number.isFinite(incomingUpdatedAt) && incomingUpdatedAt > 0) bumpLocalStateUpdatedAt(incomingUpdatedAt);
-    else bumpLocalStateUpdatedAt();
-  }
-
-  saveAll();
-  ensureUASelects();
-  ensureNameSelects();
-  ensureCodeSelects();
-  updateAutoNum();
-  renderHistory();
-  renderUAs();
-}
-
-
-/* ===== SINCRONIZAÇÃO (PLANILHA) — sem CORS =====
-   - Pull: JSONP (script tag) => precisa do Apps Script retornar callback(...)
-   - Push: sendBeacon (não precisa ler resposta)
-*/
-
-function syncExtractStateFromResponse(resp){
-  if (!resp || !resp.ok) return null;
-
-  // Formato novo: { ok:true, payload:{...} }
-  if (resp.payload && typeof resp.payload === "object") return resp.payload;
-
-  // Formato alternativo: { ok:true, data:[[...],[...]] } (linhas da planilha)
-  if (Array.isArray(resp.data)){
-    // Procura de trás pra frente uma coluna 2 que pareça JSON do estado
-    for (let i = resp.data.length - 1; i >= 0; i--){
-      const row = resp.data[i];
-      if (!row || row.length < 2) continue;
-      const cell = row[1];
-      if (typeof cell !== "string") continue;
-      const s = cell.trim();
-      if (!s) continue;
-      // ignora cabeçalho comum
-      const upper = s.toUpperCase();
-      if (upper === "PAYLOAD" || upper === "DADOS" || upper === "DATA") continue;
-
-      try{
-        const parsed = JSON.parse(s);
-        if (parsed && typeof parsed === "object") return parsed;
-      }catch(e){}
-    }
-  }
-
-  return null;
-}
-
-function syncPullViaJSONP(timeoutMs = 20000){
-  return new Promise((resolve, reject) => {
-    const cbName = "__droneLogSyncCb_" + Math.random().toString(36).slice(2);
-    const url = SYNC_URL + "?callback=" + encodeURIComponent(cbName) + "&_=" + Date.now();
-
-    const s = document.createElement("script");
-    let done = false;
-
-    const cleanup = () => {
-      if (s && s.parentNode) s.parentNode.removeChild(s);
-      try{ delete window[cbName]; }catch(e){ window[cbName] = undefined; }
-    };
-
-    const t = setTimeout(() => {
-      if (done) return;
-      done = true;
-      cleanup();
-      reject(new Error("Timeout ao puxar da planilha."));
-    }, timeoutMs);
-
-    window[cbName] = (resp) => {
-      if (done) return;
-      done = true;
-      clearTimeout(t);
-      cleanup();
-      // resp pode vir em formatos diferentes (payload ou data)
-      const extracted = syncExtractStateFromResponse(resp);
-      resolve(extracted);
-};
-
-    s.onerror = () => {
-      if (done) return;
-      done = true;
-      clearTimeout(t);
-      cleanup();
-      reject(new Error("Falha ao carregar JSONP."));
-    };
-
-    s.src = url;
-    document.head.appendChild(s);
-  });
-}
-
-function syncPushViaBeacon(){
-  return new Promise((resolve) => {
-    const dataStr = JSON.stringify(getAppState());
-    // sendBeacon: melhor para cross-domain sem CORS (não lê resposta)
-    if (navigator && typeof navigator.sendBeacon === "function"){
-      const blob = new Blob([dataStr], { type: "text/plain;charset=UTF-8" });
-      const ok = navigator.sendBeacon(SYNC_URL, blob);
-      resolve(!!ok);
-      return;
-    }
-
-    // Fallback: fetch no-cors (não dá pra ler resposta, mas envia)
-    fetch(SYNC_URL, { method:"POST", mode:"no-cors", body:dataStr })
-      .then(() => resolve(true))
-      .catch(() => resolve(false));
-  });
-}
-async async function syncPull(){
-  try{
-    setSyncStatus("Atualizando da planilha...");
-    const payload = await syncPullViaJSONP();
-    if (!payload){
-      setSyncStatus("Planilha vazia (sem dados ainda).");
-      return;
-    }
-
-    // Puxa da planilha SOMENTE os voos do dia (hoje), sem trazer dias antigos.
-    const day = todayISO();
-    applyAppState(payload, { onlyDay: true, day });
-
-    // Após atualizar, já filtra o histórico para o dia de hoje
-    const fd = document.getElementById("filterDate");
-    if (fd) fd.value = day;
-
-    setSyncStatus("Dados atualizados da planilha ✅");
-    showMsg("Sincronizado!");
-    renderHistory();
-  }catch(err){
-    console.error(err);
-    setSyncStatus("Erro ao atualizar: " + (err && err.message ? err.message : "falha desconhecida") + ".");
-    showMsg("Falha ao sincronizar.");
-  }
-}
-/ Relatório de Voo (PWA) - armazenamento local
 const APP_VERSION = "1.1.4 (autosync)";
 const VERSION_HISTORY = [
   "1.2.3 - Códigos de operação pré-carregados (não sobrescreve dados existentes)",
@@ -1302,10 +93,8 @@ function nowHHMM(){
 }
 function minutesBetween(startMs, endMs){
   const ms = Math.max(0, (endMs - startMs));
-  const full = Math.floor(ms / 60000);
-  const rem = ms % 60000;
-  const mins = full + (rem >= 30000 ? 1 : 0); // arredonda para o minuto mais próximo
-  return Math.max(1, mins);
+  // Arredonda para o minuto mais próximo (mínimo 1)
+  return Math.max(1, Math.round(ms / 60000));
 }
 function normalizeStr(s){
   return String(s || "").trim().replace(/\s+/g, " ");
@@ -2191,98 +980,83 @@ function setSyncStatus(msg){
   if (el) el.textContent = msg || "";
 }
 
+function getDeviceId(){
+  let id = localStorage.getItem("deviceId") || "";
+  if (!id){
+    id = (crypto.randomUUID ? crypto.randomUUID() : ("dev-" + Date.now() + "-" + Math.random().toString(16).slice(2)));
+    localStorage.setItem("deviceId", id);
+  }
+  return id;
+}
+
 function getAppState(){
   return {
+    deviceId: getDeviceId(),
+    updatedAt: Date.now(),
     entries: Array.isArray(entries) ? entries : [],
     uas: Array.isArray(uas) ? uas : [],
     defaultUA: String(defaultUA || ""),
-    opCodes: Array.isArray(opCodes) ? opCodes : []
+    opCodes: Array.isArray(opCodes) ? opCodes : [],
+    names: Array.isArray(names) ? names : [],
+    defaultName: String(defaultName || "")
   };
 }
 
-function applyAppState(state, opts){
+function mergeUniqueStrings(a, b){
+  const out = [];
+  const seen = new Set();
+  const add = (v) => {
+    const s = normalizeStr(v);
+    if (!s || seen.has(s)) return;
+    seen.add(s);
+    out.push(s);
+  };
+  (Array.isArray(a) ? a : []).forEach(add);
+  (Array.isArray(b) ? b : []).forEach(add);
+  return out;
+}
+
+function mergeEntriesById(localList, remoteList){
+  const map = new Map();
+
+  const put = (e) => {
+    if (!e || typeof e !== "object") return;
+    const id = String(e.id || "");
+    if (!id){
+      const k = "noid-" + Math.random().toString(16).slice(2);
+      map.set(k, e);
+      return;
+    }
+    const prev = map.get(id);
+    if (!prev){
+      map.set(id, e);
+      return;
+    }
+    const a = String(prev.createdAt || "");
+    const b = String(e.createdAt || "");
+    if (b && (!a || b > a)) map.set(id, e);
+  };
+
+  (Array.isArray(localList) ? localList : []).forEach(put);
+  (Array.isArray(remoteList) ? remoteList : []).forEach(put);
+
+  return Array.from(map.values());
+}
+
+function applyAppState(state){
   if (!state || typeof state !== "object") return;
 
-  const options = (opts && typeof opts === "object") ? opts : {};
-  const onlyDay = options.onlyDay === true;
-  const targetDay = normalizeStr(options.day) || todayISO();
+  // MERGE seguro: nunca apaga o local; adiciona/atualiza o que vem da planilha
+  entries = mergeEntriesById(entries, Array.isArray(state.entries) ? state.entries : []);
+  uas = mergeUniqueStrings(uas, Array.isArray(state.uas) ? state.uas : []);
+  opCodes = mergeUniqueStrings(opCodes, Array.isArray(state.opCodes) ? state.opCodes : []);
+  names = mergeUniqueStrings(names, Array.isArray(state.names) ? state.names : []);
 
-  const incomingUpdatedAt = Number(state.updatedAt || 0);
-  const localUpdatedAt = getLocalStateUpdatedAt();
+  const srvDefaultUA = normalizeStr(state.defaultUA);
+  if (srvDefaultUA) defaultUA = srvDefaultUA;
 
-  const incomingEntriesAll = Array.isArray(state.entries) ? state.entries : [];
-  const incomingEntries = onlyDay
-    ? incomingEntriesAll.filter(e => e && String(e.date || "") === String(targetDay))
-    : incomingEntriesAll;
-
-  // Se o estado vindo da planilha for mais antigo, NÃO sobrescreve tudo.
-  // Faz merge não-destrutivo: adiciona o que está faltando, mas não apaga o local.
-  const incomingIsOlder = (Number.isFinite(incomingUpdatedAt) && incomingUpdatedAt > 0 && localUpdatedAt > 0 && incomingUpdatedAt < localUpdatedAt);
-
-  if (incomingIsOlder){
-    // merge de entries por id
-    const map = new Map();
-    (Array.isArray(entries) ? entries : []).forEach(e => {
-      if (e && e.id) map.set(String(e.id), e);
-    });
-
-    incomingEntries.forEach(e => {
-      if (!e || !e.id) return;
-      const id = String(e.id);
-      if (!map.has(id)) map.set(id, e);
-      // se já existe local, mantém local (porque local é mais novo)
-    });
-
-    let merged = Array.from(map.values());
-
-    // Se estamos puxando só o dia, substitui APENAS o dia alvo pelo que veio da planilha (sem mexer no resto)
-    if (onlyDay){
-      const keep = merged.filter(e => String(e?.date || "") !== String(targetDay));
-      merged = keep.concat(incomingEntries);
-    }
-
-    entries = merged;
-
-    // merge de listas simples (união)
-    const inUas = Array.isArray(state.uas) ? state.uas : [];
-    uas = Array.from(new Set([...(Array.isArray(uas)?uas:[]), ...inUas].map(x => String(x)).filter(Boolean)));
-
-    const inCodes = Array.isArray(state.opCodes) ? state.opCodes : [];
-    opCodes = Array.from(new Set([...(Array.isArray(opCodes)?opCodes:[]), ...inCodes].map(x => String(x)).filter(Boolean)));
-
-    const inNames = Array.isArray(state.names) ? state.names : [];
-    names = Array.from(new Set([...(Array.isArray(names)?names:[]), ...inNames].map(x => String(x)).filter(Boolean)));
-
-    // defaultUA / defaultName: só preenche se ainda não tiver
-    if (!defaultUA) defaultUA = String(state.defaultUA || "");
-    if (!defaultName) defaultName = String(state.defaultName || "");
-
-    setSyncStatus("ℹ️ Planilha com estado mais antigo. Fiz merge sem apagar seus dados.");
-    // mantém timestamp local (não reduz)
-    bumpLocalStateUpdatedAt(localUpdatedAt || Date.now());
-  }else{
-    // Estado da planilha é igual/mais novo: aplica normalmente (ou só o dia, sem apagar o resto)
-    const newUas = Array.isArray(state.uas) ? state.uas : [];
-    const newCodes = Array.isArray(state.opCodes) ? state.opCodes : [];
-    const newNames = Array.isArray(state.names) ? state.names : [];
-
-    if (onlyDay){
-      const keep = (Array.isArray(entries) ? entries : []).filter(e => String(e?.date || "") !== String(targetDay));
-      entries = keep.concat(incomingEntries);
-    }else{
-      entries = incomingEntriesAll;
-    }
-
-    uas = newUas;
-    defaultUA = String(state.defaultUA || "");
-    opCodes = newCodes;
-
-    names = newNames;
-    defaultName = String(state.defaultName || "");
-
-    if (Number.isFinite(incomingUpdatedAt) && incomingUpdatedAt > 0) bumpLocalStateUpdatedAt(incomingUpdatedAt);
-    else bumpLocalStateUpdatedAt();
-  }
+  const srvDefaultName = normalizeStr(state.defaultName);
+  if (srvDefaultName) defaultName = srvDefaultName;
 
   saveAll();
   ensureUASelects();
@@ -2357,7 +1131,7 @@ function syncPullViaJSONP(timeoutMs = 20000){
       // resp pode vir em formatos diferentes (payload ou data)
       const extracted = syncExtractStateFromResponse(resp);
       resolve(extracted);
-};
+    };
 
     s.onerror = () => {
       if (done) return;
@@ -2389,7 +1163,7 @@ function syncPushViaBeacon(){
       .catch(() => resolve(false));
   });
 }
-async async function syncPull(){
+async function syncPull(){
   try{
     setSyncStatus("Atualizando da planilha...");
     const payload = await syncPullViaJSONP();
@@ -2397,7 +1171,14 @@ async async function syncPull(){
       setSyncStatus("Planilha vazia (sem dados ainda).");
       return;
     }
+
     applyAppState(payload);
+
+    // padrão: ao atualizar, mostrar o dia de hoje no histórico
+    const fd = document.getElementById("filterDate");
+    if (fd) fd.value = todayISO();
+    renderHistory();
+
     setSyncStatus("Dados atualizados da planilha ✅");
     showMsg("Sincronizado!");
   }catch(err){
@@ -2407,7 +1188,7 @@ async async function syncPull(){
   }
 }
 
-async async function syncPush(){
+async function syncPush(){
   try{
     setSyncStatus("Enviando para a planilha...");
     const ok = await syncPushViaBeacon();
@@ -2641,8 +1422,26 @@ function deleteEdit(){
 }
 
 /* ===== PWA: registrar SW ===== */
+function bindDotDecimal(id){
+  const el = document.getElementById(id);
+  if (!el) return;
+  const fix = () => {
+    let v = String(el.value || "");
+    v = v.replace(/,/g, ".");
+    v = v.replace(/[^0-9.]/g, "");
+    const parts = v.split(".");
+    if (parts.length > 2){
+      v = parts[0] + "." + parts.slice(1).join("");
+    }
+    el.value = v;
+  };
+  el.addEventListener("input", fix);
+  el.addEventListener("blur", fix);
+}
+
 (function init(){
   ensureUASelects();
+  ensureNameSelects();
   ensureCodeSelects();
   buildPickers();
 
@@ -2651,6 +1450,11 @@ function deleteEdit(){
     dEl.value = todayISO();
     dEl.addEventListener("change", () => updateAutoNum());
   }
+
+  // deixa o histórico já filtrado em HOJE (evita mostrar dias antigos por padrão)
+  const fd = document.getElementById("filterDate");
+  if (fd && !normalizeStr(fd.value)) fd.value = todayISO();
+
   updateAutoNum();
   renderHistory();
   renderUAs();
@@ -2658,73 +1462,10 @@ function deleteEdit(){
   const btnEnd = document.getElementById("btnEnd");
   if (btnEnd) btnEnd.disabled = true;
 
-  // Força separador decimal com ponto no campo VOO (aceita também vírgula e converte)
-  function bindDotDecimal(id){
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.addEventListener('input', () => {
-      const v = String(el.value || '');
-      // troca vírgula por ponto e remove caracteres não permitidos
-      let out = v.replace(/,/g, '.').replace(/[^0-9.]/g, '');
-      // evita mais de um ponto
-      const parts = out.split('.');
-      if (parts.length > 2){
-        out = parts[0] + '.' + parts.slice(1).join('');
-      }
-      if (out !== v) el.value = out;
-    });
-  }
-  bindDotDecimal('f_voo');
-  bindDotDecimal('e_voo');
-
-  // Força separador decimal com ponto no campo VOO (aceita também vírgula e converte)
-  function bindDotDecimal(id){
-    const el = document.getElementById(id);
-    if (!el) return;
-    const fix = () => {
-      let v = String(el.value || '');
-      v = v.replace(/,/g, '.');
-      v = v.replace(/[^0-9.]/g, '');
-      // evita mais de um ponto
-      const parts = v.split('.');
-      if (parts.length > 2){
-        v = parts[0] + '.' + parts.slice(1).join('');
-      }
-      el.value = v;
-    };
-    el.addEventListener('input', fix);
-    el.addEventListener('blur', fix);
-  }
-  bindDotDecimal('f_voo');
-  bindDotDecimal('e_voo');
-
-  // Força separador decimal com ponto no campo VOO (aceita também vírgula e converte)
-  function bindDotDecimal(id){
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.addEventListener('input', () => {
-      const v = String(el.value || '');
-      // mantém só dígitos e separadores, troca vírgula por ponto
-      let out = v.replace(/,/g, '.').replace(/[^0-9.]/g, '');
-      // evita múltiplos pontos
-      const parts = out.split('.');
-      if (parts.length > 2){
-        out = parts[0] + '.' + parts.slice(1).join('');
-      }
-      if (out !== v) el.value = out;
-    });
-  }
-  bindDotDecimal('f_voo');
-  bindDotDecimal('e_voo');
-
+  bindDotDecimal("f_voo");
+  bindDotDecimal("e_voo");
 
   if ("serviceWorker" in navigator){
     navigator.serviceWorker.register("./service-worker.js").catch(() => {});
   }
 })();
-
-
-document.addEventListener("DOMContentLoaded", function(){
-  bindDotDecimal("f_voo");
-  bindDotDecimal("e_voo");
-});
