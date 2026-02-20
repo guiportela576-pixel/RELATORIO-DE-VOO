@@ -1,0 +1,15 @@
+{
+  "name": "Relatório de Voo",
+  "short_name": "Relatório",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#05070c",
+  "theme_color": "#05070c",
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ]
+}
