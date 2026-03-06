@@ -1,6 +1,7 @@
 // Relatório de Voo (PWA) - armazenamento local
-const APP_VERSION = "v39";
+const APP_VERSION = "v40";
 const VERSION_HISTORY = [
+  "1.3.0 - Migração da sincronização para Supabase (nomes/UAs/códigos continuam locais)",
   "1.2.3 - Códigos de operação pré-carregados (não sobrescreve dados existentes)",
   "1.2.2 - Correção: botões/tabs voltaram a funcionar (erro JS) + VOO decimal no teclado",
   "1.2.0 - Códigos de operação + total de minutos do dia + export PDF corrigido (Android/iOS) + teclado numérico (Voo/Cargas)",
@@ -8,8 +9,7 @@ const VERSION_HISTORY = [
   "1.0.0 - App inicial (novo + histórico + UA + cronômetro)"
 ];
 
-// URL do Apps Script (Planilha) para sincronização
-const SYNC_URL = "https://script.google.com/macros/s/AKfycbzvavI93pQGiyX5hWhOSdPfHgQcIQxLJQXrjkht4gw0ax_6ZtPn1NUsNs24pIcE9i32/exec";
+// Sincronização remota: agora via Supabase (configurado em supabase-config.js)
 
 
 let entries = []; // carregado do IndexedDB (com migração automática)
@@ -623,15 +623,19 @@ function saveEntry(){
   clearForm();
   showMsg("Registro salvo!");
 
-  // Auto-sync: envia para a planilha ao salvar (não bloqueia o salvamento)
+  // Auto-sync: envia para o Supabase ao salvar (não bloqueia o salvamento local)
   try{
-    setSyncStatus("Enviando automaticamente para a planilha...");
-    syncPushViaBeacon().then((ok)=>{
-      if (ok) setSyncStatus("Enviado automaticamente para a planilha ✅");
-      else setSyncStatus("Falha no envio automático. Use \"Enviar para planilha\".");
-    });
+    if (window.RV_SYNC && typeof RV_SYNC.upsertEntry === "function"){
+      setSyncStatus("Enviando automaticamente para o Supabase...");
+      RV_SYNC.upsertEntry(entry).then((ok)=>{
+        if (ok) setSyncStatus("Enviado automaticamente para o Supabase ✅");
+        else setSyncStatus("Falha no envio automático. Use \"Enviar para o Supabase\".");
+      });
+    } else {
+      setSyncStatus("Supabase ainda não configurado neste app.");
+    }
   }catch(e){
-    setSyncStatus("Falha no envio automático. Use \"Enviar para planilha\".");
+    setSyncStatus("Falha no envio automático. Use \"Enviar para o Supabase\".");
   }
 
 }
@@ -938,7 +942,15 @@ function deleteOne(id){
   showMsg("Voo excluído!");
 
   // dica rápida para sincronização
-  setSyncStatus("Voo excluído. Clique em 'Enviar para planilha' para sincronizar.");
+  setSyncStatus("Voo excluído. Sincronizando com o Supabase...");
+  try{
+    if (window.RV_SYNC && typeof RV_SYNC.upsertEntry === "function"){
+      RV_SYNC.upsertEntry(e).then((ok)=>{
+        if (ok) setSyncStatus("Voo excluído no Supabase ✅");
+        else setSyncStatus("Falha ao excluir no Supabase. Use \"Enviar para o Supabase\".");
+      });
+    }
+  }catch(e){}
 }
 
 
@@ -1085,119 +1097,25 @@ function applyAppState(state){
 }
 
 
-/* ===== SINCRONIZAÇÃO (PLANILHA) — sem CORS =====
-   - Pull: JSONP (script tag) => precisa do Apps Script retornar callback(...)
-   - Push: sendBeacon (não precisa ler resposta)
-*/
+/* ===== SINCRONIZAÇÃO (SUPABASE) ===== */
 
-function syncExtractStateFromResponse(resp){
-  if (!resp || !resp.ok) return null;
-
-  // Formato novo: { ok:true, payload:{...} }
-  if (resp.payload && typeof resp.payload === "object") return resp.payload;
-
-  // Formato alternativo: { ok:true, data:[[...],[...]] } (linhas da planilha)
-  if (Array.isArray(resp.data)){
-    // Procura de trás pra frente uma coluna 2 que pareça JSON do estado
-    for (let i = resp.data.length - 1; i >= 0; i--){
-      const row = resp.data[i];
-      if (!row || row.length < 2) continue;
-      const cell = row[1];
-      if (typeof cell !== "string") continue;
-      const s = cell.trim();
-      if (!s) continue;
-      // ignora cabeçalho comum
-      const upper = s.toUpperCase();
-      if (upper === "PAYLOAD" || upper === "DADOS" || upper === "DATA") continue;
-
-      try{
-        const parsed = JSON.parse(s);
-        if (parsed && typeof parsed === "object") return parsed;
-      }catch(e){}
-    }
-  }
-
-  return null;
-}
-
-function syncPullViaJSONP(timeoutMs = 20000){
-  return new Promise((resolve, reject) => {
-    const cbName = "__droneLogSyncCb_" + Math.random().toString(36).slice(2);
-    const url = SYNC_URL + "?callback=" + encodeURIComponent(cbName) + "&_=" + Date.now();
-
-    const s = document.createElement("script");
-    let done = false;
-
-    const cleanup = () => {
-      if (s && s.parentNode) s.parentNode.removeChild(s);
-      try{ delete window[cbName]; }catch(e){ window[cbName] = undefined; }
-    };
-
-    const t = setTimeout(() => {
-      if (done) return;
-      done = true;
-      cleanup();
-      reject(new Error("Timeout ao puxar da planilha."));
-    }, timeoutMs);
-
-    window[cbName] = (resp) => {
-      if (done) return;
-      done = true;
-      clearTimeout(t);
-      cleanup();
-      // resp pode vir em formatos diferentes (payload ou data)
-      const extracted = syncExtractStateFromResponse(resp);
-      resolve(extracted);
-    };
-
-    s.onerror = () => {
-      if (done) return;
-      done = true;
-      clearTimeout(t);
-      cleanup();
-      reject(new Error("Falha ao carregar JSONP."));
-    };
-
-    s.src = url;
-    document.head.appendChild(s);
-  });
-}
-
-function syncPushViaBeacon(){
-  return new Promise((resolve) => {
-    const dataStr = JSON.stringify(getAppState());
-    // sendBeacon: melhor para cross-domain sem CORS (não lê resposta)
-    if (navigator && typeof navigator.sendBeacon === "function"){
-      const blob = new Blob([dataStr], { type: "text/plain;charset=UTF-8" });
-      const ok = navigator.sendBeacon(SYNC_URL, blob);
-      resolve(!!ok);
-      return;
-    }
-
-    // Fallback: fetch no-cors (não dá pra ler resposta, mas envia)
-    fetch(SYNC_URL, { method:"POST", mode:"no-cors", body:dataStr })
-      .then(() => resolve(true))
-      .catch(() => resolve(false));
-  });
-}
 async function syncPull(){
   try{
-    setSyncStatus("Atualizando da planilha...");
-    const payload = await syncPullViaJSONP();
-    if (!payload){
-      setSyncStatus("Planilha vazia (sem dados ainda).");
+    if (!window.RV_SYNC || typeof RV_SYNC.pull !== "function"){
+      setSyncStatus("Supabase ainda não configurado neste app.");
       return;
     }
 
-    applyAppState(payload);
+    setSyncStatus("Atualizando do Supabase...");
+    const remoteEntries = await RV_SYNC.pull();
+    entries = mergeEntriesById(entries, Array.isArray(remoteEntries) ? remoteEntries : []);
     saveAll();
 
-    // padrão: ao atualizar, mostrar o dia de hoje no histórico
     const fd = document.getElementById("filterDate");
     if (fd) fd.value = todayISO();
     renderHistory();
 
-    setSyncStatus("Dados atualizados da planilha ✅");
+    setSyncStatus("Dados atualizados do Supabase ✅");
     showMsg("Sincronizado!");
   }catch(err){
     console.error(err);
@@ -1208,10 +1126,15 @@ async function syncPull(){
 
 async function syncPush(){
   try{
-    setSyncStatus("Enviando para a planilha...");
-    const ok = await syncPushViaBeacon();
-    if (!ok) throw new Error("Falha ao enviar (beacon).");
-    setSyncStatus("Enviado para a planilha ✅");
+    if (!window.RV_SYNC || typeof RV_SYNC.pushAll !== "function"){
+      setSyncStatus("Supabase ainda não configurado neste app.");
+      return;
+    }
+
+    setSyncStatus("Enviando para o Supabase...");
+    const ok = await RV_SYNC.pushAll(Array.isArray(entries) ? entries : []);
+    if (!ok) throw new Error("Falha ao enviar dados.");
+    setSyncStatus("Enviado para o Supabase ✅");
     showMsg("Enviado!");
   }catch(err){
     console.error(err);
@@ -1361,6 +1284,7 @@ function openEditModal(id){
 
   editId = id;
   ensureUASelects();
+  ensureNameSelects();
   buildPickers();
 
   const f = e.fields || {};
@@ -1369,6 +1293,7 @@ function openEditModal(id){
 
   document.getElementById("e_num").value = f.num || "";
   document.getElementById("e_missao").value = f.missao || "";
+  document.getElementById("e_nome").value = f.nome || "";
     ensureCodeSelects();
     const ec = document.getElementById("e_codigo");
     if (ec) ec.value = f.codigo || "";
@@ -1402,6 +1327,7 @@ function saveEdit(){
   const nf = {
     num: normalizeStr(document.getElementById("e_num").value),
     missao: normalizeStr(document.getElementById("e_missao").value),
+    nome: normalizeStr(document.getElementById("e_nome").value) || defaultName,
     codigo: normalizeStr(document.getElementById("e_codigo")?.value),
     voo: normalizeDecimalDots(document.getElementById("e_voo").value),
     inicio: normalizeStr(document.getElementById("e_inicio").value),
@@ -1415,29 +1341,38 @@ function saveEdit(){
   };
 
   e.fields = nf;
+  e.updatedAt = new Date().toISOString();
+  e.deleted = false;
+  delete e.deletedAt;
   entries[idx] = e;
 
   if (nf.ua && !uas.includes(nf.ua)) uas.push(nf.ua);
+  if (nf.nome && !names.includes(nf.nome)) names.push(nf.nome);
 
-  if (typeof entry === "object" && entry) entry.updatedAt = new Date().toISOString();
   saveAll();
   ensureUASelects();
+  ensureNameSelects();
   closeModal();
   renderHistory();
   showMsg("Registro atualizado!");
+
+  try{
+    if (window.RV_SYNC && typeof RV_SYNC.upsertEntry === "function"){
+      setSyncStatus("Enviando edição para o Supabase...");
+      RV_SYNC.upsertEntry(e).then((ok)=>{
+        if (ok) setSyncStatus("Edição enviada para o Supabase ✅");
+        else setSyncStatus("Falha ao enviar edição. Use \"Enviar para o Supabase\".");
+      });
+    }
+  }catch(err){}
 }
 
 function deleteEdit(){
   if (!editId) return;
-  const idx = entries.findIndex(x => x.id === editId);
-  if (idx < 0) return;
   if (!confirm("Excluir este registro?")) return;
-
-  entries.splice(idx, 1);
-  saveAll();
+  const id = editId;
   closeModal();
-  renderHistory();
-  showMsg("Registro excluído.");
+  deleteOne(id);
 }
 
 /* ===== PWA: registrar SW ===== */
@@ -1492,6 +1427,17 @@ function bindDotDecimal(id){
   updateAutoNum();
   renderHistory();
   renderUAs();
+
+  try{
+    if (window.RV_SYNC && typeof RV_SYNC.isConfigured === "function" && RV_SYNC.isConfigured()){
+      setSyncStatus("Supabase configurado. Atualizando dados...");
+      await syncPull();
+    } else {
+      setSyncStatus("Supabase ainda não configurado. Preencha supabase-config.js");
+    }
+  }catch(err){
+    setSyncStatus("Falha ao carregar Supabase. O app continua funcionando localmente.");
+  }
 
   const btnEnd = document.getElementById("btnEnd");
   if (btnEnd) btnEnd.disabled = true;

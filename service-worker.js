@@ -1,4 +1,4 @@
-const CACHE_NAME = "relatorio-voo-ios-v34";
+const CACHE_NAME = "relatorio-voo-ios-v40";
 
 self.addEventListener("install", (event) => {
   self.skipWaiting();
@@ -11,8 +11,10 @@ self.addEventListener("install", (event) => {
         "./state.js?v=1",
         "./utils.js?v=1",
         "./db.js?v=1",
+        "./supabase-config.js?v=1",
+        "./supabase-sync.js?v=1",
         "./tests.js?v=1",
-        "./app.js?v=39",
+        "./app.js?v=40",
         "./manifest.json",
         "./icon.png"
       ])
